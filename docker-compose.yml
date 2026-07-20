@@ -1,0 +1,32 @@
+services:
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - '1025:1025'
+      - '8025:8025'
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    env_file:
+      - .env
+    environment:
+      # The app must bind to all interfaces for the published port to work.
+      HOST: 0.0.0.0
+      # Resolved via the compose network, not localhost, from inside the container.
+      SMTP_HOST: mailpit
+      # This is the URL your browser uses (e.g. for invite links), not what
+      # the container listens on — keep it pointed at the published port.
+      APP_URL: http://localhost:3333
+      # Let pnpm auto-confirm its dependency-freshness check (assembler runs
+      # it on boot); there's no TTY to prompt in a detached container.
+      CI: 'true'
+    ports:
+      - '3333:3333'
+      - '5173:5173'
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - mailpit
