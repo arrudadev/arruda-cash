@@ -1,16 +1,14 @@
 import testUtils from '@adonisjs/core/services/test_utils'
 import { test } from '@japa/runner'
+import { CategoryFactory } from '#database/factories/category_factory'
+import { UserFactory } from '#database/factories/user_factory'
 import Category from '#models/category'
-import User from '#models/user'
 
 test.group('Categories', (group) => {
   group.each.setup(() => testUtils.db().withGlobalTransaction())
 
   test('authenticated user can create a category', async ({ client, assert }) => {
-    const user = await User.create({
-      email: 'owner@example.com',
-      password: 'password123',
-    })
+    const user = await UserFactory.create()
 
     const response = await client
       .post('/categories')
@@ -28,10 +26,7 @@ test.group('Categories', (group) => {
   })
 
   test('rejects an invalid color', async ({ client, assert }) => {
-    const user = await User.create({
-      email: 'owner@example.com',
-      password: 'password123',
-    })
+    const user = await UserFactory.create()
 
     await client
       .post('/categories')
@@ -43,21 +38,11 @@ test.group('Categories', (group) => {
   })
 
   test('index only lists the authenticated user categories', async ({ client, assert }) => {
-    const owner = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const other = await User.create({ email: 'other@example.com', password: 'password123' })
+    const owner = await UserFactory.create()
+    const other = await UserFactory.create()
 
-    await Category.create({
-      userId: owner.id,
-      name: 'Owner category',
-      color: '#22c55e',
-      type: 'expense',
-    })
-    await Category.create({
-      userId: other.id,
-      name: 'Other category',
-      color: '#ef4444',
-      type: 'income',
-    })
+    await CategoryFactory.merge({ userId: owner.id, name: 'Owner category' }).create()
+    await CategoryFactory.merge({ userId: other.id, name: 'Other category' }).create()
 
     const response = await client.get('/categories').loginAs(owner).withInertia()
 
@@ -69,13 +54,8 @@ test.group('Categories', (group) => {
   })
 
   test('owner can update their category', async ({ client, assert }) => {
-    const user = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const category = await Category.create({
-      userId: user.id,
-      name: 'Groceries',
-      color: '#22c55e',
-      type: 'expense',
-    })
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
 
     const response = await client
       .put(`/categories/${category.id}`)
@@ -91,14 +71,9 @@ test.group('Categories', (group) => {
   })
 
   test('a user cannot update another user category', async ({ client }) => {
-    const owner = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const attacker = await User.create({ email: 'attacker@example.com', password: 'password123' })
-    const category = await Category.create({
-      userId: owner.id,
-      name: 'Groceries',
-      color: '#22c55e',
-      type: 'expense',
-    })
+    const owner = await UserFactory.create()
+    const attacker = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: owner.id, type: 'expense' }).create()
 
     const response = await client
       .put(`/categories/${category.id}`)
@@ -109,13 +84,8 @@ test.group('Categories', (group) => {
   })
 
   test('destroy archives the category instead of deleting it', async ({ client, assert }) => {
-    const user = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const category = await Category.create({
-      userId: user.id,
-      name: 'Groceries',
-      color: '#22c55e',
-      type: 'expense',
-    })
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
 
     const response = await client.delete(`/categories/${category.id}`).loginAs(user).redirects(0)
 

@@ -1,19 +1,14 @@
 import testUtils from '@adonisjs/core/services/test_utils'
 import { test } from '@japa/runner'
-import Category from '#models/category'
-import User from '#models/user'
+import { CategoryFactory } from '#database/factories/category_factory'
+import { UserFactory } from '#database/factories/user_factory'
 
 test.group('Transactions (browser)', (group) => {
   group.each.setup(() => testUtils.db().withGlobalTransaction())
 
   test('user creates a transaction from the UI', async ({ browserContext, visit }) => {
-    const user = await User.create({ email: 'owner@example.com', password: 'password123' })
-    await Category.create({
-      userId: user.id,
-      name: 'Groceries',
-      color: '#22c55e',
-      type: 'expense',
-    })
+    const user = await UserFactory.create()
+    await CategoryFactory.merge({ userId: user.id, name: 'Groceries', type: 'expense' }).create()
     await browserContext.loginAs(user)
 
     const page = await visit('/transactions')

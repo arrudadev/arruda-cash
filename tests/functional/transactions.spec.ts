@@ -1,21 +1,17 @@
 import testUtils from '@adonisjs/core/services/test_utils'
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
-import Category from '#models/category'
+import { CategoryFactory } from '#database/factories/category_factory'
+import { TransactionFactory } from '#database/factories/transaction_factory'
+import { UserFactory } from '#database/factories/user_factory'
 import Transaction from '#models/transaction'
-import User from '#models/user'
 
 test.group('Transactions', (group) => {
   group.each.setup(() => testUtils.db().withGlobalTransaction())
 
   test('authenticated user can create a transaction', async ({ client, assert }) => {
-    const user = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const category = await Category.create({
-      userId: user.id,
-      name: 'Groceries',
-      color: '#22c55e',
-      type: 'expense',
-    })
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
 
     const response = await client
       .post('/transactions')
@@ -32,14 +28,12 @@ test.group('Transactions', (group) => {
   })
 
   test('rejects a transaction against an archived category', async ({ client, assert }) => {
-    const user = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const category = await Category.create({
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({
       userId: user.id,
-      name: 'Groceries',
-      color: '#22c55e',
       type: 'expense',
       archivedAt: DateTime.now(),
-    })
+    }).create()
 
     await client
       .post('/transactions')
@@ -51,14 +45,9 @@ test.group('Transactions', (group) => {
   })
 
   test('a user cannot attach a transaction to someone else category', async ({ client }) => {
-    const owner = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const attacker = await User.create({ email: 'attacker@example.com', password: 'password123' })
-    const category = await Category.create({
-      userId: owner.id,
-      name: 'Groceries',
-      color: '#22c55e',
-      type: 'expense',
-    })
+    const owner = await UserFactory.create()
+    const attacker = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: owner.id, type: 'expense' }).create()
 
     const response = await client
       .post('/transactions')
@@ -70,34 +59,28 @@ test.group('Transactions', (group) => {
   })
 
   test('index lists only the authenticated user transactions', async ({ client, assert }) => {
-    const owner = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const other = await User.create({ email: 'other@example.com', password: 'password123' })
-    const ownerCategory = await Category.create({
+    const owner = await UserFactory.create()
+    const other = await UserFactory.create()
+    const ownerCategory = await CategoryFactory.merge({
       userId: owner.id,
-      name: 'Groceries',
-      color: '#22c55e',
       type: 'expense',
-    })
-    const otherCategory = await Category.create({
+    }).create()
+    const otherCategory = await CategoryFactory.merge({
       userId: other.id,
-      name: 'Other',
-      color: '#000000',
       type: 'expense',
-    })
-    await Transaction.create({
+    }).create()
+    await TransactionFactory.merge({
       userId: owner.id,
       categoryId: ownerCategory.id,
       type: 'expense',
-      amount: 1000,
       date: DateTime.fromISO('2026-07-01'),
-    })
-    await Transaction.create({
+    }).create()
+    await TransactionFactory.merge({
       userId: other.id,
       categoryId: otherCategory.id,
       type: 'expense',
-      amount: 1000,
       date: DateTime.fromISO('2026-07-01'),
-    })
+    }).create()
 
     const response = await client.get('/transactions').loginAs(owner).withInertia()
 
@@ -107,33 +90,21 @@ test.group('Transactions', (group) => {
   })
 
   test('index filters by category', async ({ client, assert }) => {
-    const user = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const groceries = await Category.create({
-      userId: user.id,
-      name: 'Groceries',
-      color: '#22c55e',
-      type: 'expense',
-    })
-    const salary = await Category.create({
-      userId: user.id,
-      name: 'Salary',
-      color: '#eab308',
-      type: 'income',
-    })
-    await Transaction.create({
+    const user = await UserFactory.create()
+    const groceries = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    const salary = await CategoryFactory.merge({ userId: user.id, type: 'income' }).create()
+    await TransactionFactory.merge({
       userId: user.id,
       categoryId: groceries.id,
       type: 'expense',
-      amount: 1000,
       date: DateTime.fromISO('2026-07-01'),
-    })
-    await Transaction.create({
+    }).create()
+    await TransactionFactory.merge({
       userId: user.id,
       categoryId: salary.id,
       type: 'income',
-      amount: 5000,
       date: DateTime.fromISO('2026-07-01'),
-    })
+    }).create()
 
     const response = await client
       .get('/transactions')
@@ -146,20 +117,14 @@ test.group('Transactions', (group) => {
   })
 
   test('owner can update their transaction', async ({ client, assert }) => {
-    const user = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const category = await Category.create({
-      userId: user.id,
-      name: 'Groceries',
-      color: '#22c55e',
-      type: 'expense',
-    })
-    const transaction = await Transaction.create({
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    const transaction = await TransactionFactory.merge({
       userId: user.id,
       categoryId: category.id,
       type: 'expense',
-      amount: 1000,
       date: DateTime.fromISO('2026-07-01'),
-    })
+    }).create()
 
     const response = await client
       .put(`/transactions/${transaction.id}`)
@@ -180,20 +145,14 @@ test.group('Transactions', (group) => {
   })
 
   test('owner can delete their transaction', async ({ client, assert }) => {
-    const user = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const category = await Category.create({
-      userId: user.id,
-      name: 'Groceries',
-      color: '#22c55e',
-      type: 'expense',
-    })
-    const transaction = await Transaction.create({
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    const transaction = await TransactionFactory.merge({
       userId: user.id,
       categoryId: category.id,
       type: 'expense',
-      amount: 1000,
       date: DateTime.fromISO('2026-07-01'),
-    })
+    }).create()
 
     const response = await client
       .delete(`/transactions/${transaction.id}`)

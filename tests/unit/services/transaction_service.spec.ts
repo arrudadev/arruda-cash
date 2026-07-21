@@ -1,9 +1,10 @@
 import testUtils from '@adonisjs/core/services/test_utils'
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
+import { CategoryFactory } from '#database/factories/category_factory'
+import { UserFactory } from '#database/factories/user_factory'
 import ArchivedCategoryException from '#exceptions/archived_category_exception'
 import Transaction from '#models/transaction'
-import User from '#models/user'
 import { CategoryService } from '#services/category_service'
 import { TransactionService } from '#services/transaction_service'
 
@@ -16,12 +17,8 @@ test.group('TransactionService', (group) => {
   test('create derives the type from the category and stores the amount in cents', async ({
     assert,
   }) => {
-    const user = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const category = await categoryService.create(user.id, {
-      name: 'Groceries',
-      color: '#22c55e',
-      type: 'expense',
-    })
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
 
     const transaction = await transactionService.create(user.id, {
       categoryId: category.id,
@@ -37,12 +34,8 @@ test.group('TransactionService', (group) => {
   })
 
   test('create rejects an archived category', async ({ assert }) => {
-    const user = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const category = await categoryService.create(user.id, {
-      name: 'Groceries',
-      color: '#22c55e',
-      type: 'expense',
-    })
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
     await categoryService.archive(category)
 
     await assert.rejects(
@@ -57,13 +50,9 @@ test.group('TransactionService', (group) => {
   })
 
   test('create rejects a category owned by someone else', async ({ assert }) => {
-    const owner = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const attacker = await User.create({ email: 'attacker@example.com', password: 'password123' })
-    const category = await categoryService.create(owner.id, {
-      name: 'Groceries',
-      color: '#22c55e',
-      type: 'expense',
-    })
+    const owner = await UserFactory.create()
+    const attacker = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: owner.id, type: 'expense' }).create()
 
     await assert.rejects(() =>
       transactionService.create(attacker.id, {
@@ -75,17 +64,9 @@ test.group('TransactionService', (group) => {
   })
 
   test('update re-derives the type when the category changes', async ({ assert }) => {
-    const user = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const groceries = await categoryService.create(user.id, {
-      name: 'Groceries',
-      color: '#22c55e',
-      type: 'expense',
-    })
-    const salary = await categoryService.create(user.id, {
-      name: 'Salary',
-      color: '#eab308',
-      type: 'income',
-    })
+    const user = await UserFactory.create()
+    const groceries = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    const salary = await CategoryFactory.merge({ userId: user.id, type: 'income' }).create()
     const transaction = await transactionService.create(user.id, {
       categoryId: groceries.id,
       amount: 10,
@@ -104,12 +85,8 @@ test.group('TransactionService', (group) => {
   })
 
   test('destroy removes the row', async ({ assert }) => {
-    const user = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const category = await categoryService.create(user.id, {
-      name: 'Groceries',
-      color: '#22c55e',
-      type: 'expense',
-    })
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
     const transaction = await transactionService.create(user.id, {
       categoryId: category.id,
       amount: 10,
@@ -125,23 +102,14 @@ test.group('TransactionService', (group) => {
   test('listForUser filters by category, type and date range, scoped to the user', async ({
     assert,
   }) => {
-    const user = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const other = await User.create({ email: 'other@example.com', password: 'password123' })
-    const groceries = await categoryService.create(user.id, {
-      name: 'Groceries',
-      color: '#22c55e',
+    const user = await UserFactory.create()
+    const other = await UserFactory.create()
+    const groceries = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    const salary = await CategoryFactory.merge({ userId: user.id, type: 'income' }).create()
+    const otherCategory = await CategoryFactory.merge({
+      userId: other.id,
       type: 'expense',
-    })
-    const salary = await categoryService.create(user.id, {
-      name: 'Salary',
-      color: '#eab308',
-      type: 'income',
-    })
-    const otherCategory = await categoryService.create(other.id, {
-      name: 'Other',
-      color: '#000000',
-      type: 'expense',
-    })
+    }).create()
 
     await transactionService.create(user.id, {
       categoryId: groceries.id,

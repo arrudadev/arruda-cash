@@ -1,7 +1,7 @@
 import testUtils from '@adonisjs/core/services/test_utils'
 import { test } from '@japa/runner'
+import { UserFactory } from '#database/factories/user_factory'
 import Category from '#models/category'
-import User from '#models/user'
 import { CategoryService } from '#services/category_service'
 
 test.group('CategoryService', (group) => {
@@ -10,7 +10,7 @@ test.group('CategoryService', (group) => {
   group.each.setup(() => testUtils.db().withGlobalTransaction())
 
   test('create scopes the category to the given user', async ({ assert }) => {
-    const user = await User.create({ email: 'owner@example.com', password: 'password123' })
+    const user = await UserFactory.create()
 
     const category = await categoryService.create(user.id, {
       name: 'Groceries',
@@ -26,8 +26,8 @@ test.group('CategoryService', (group) => {
   test('listForUser only returns categories owned by that user, sorted by name', async ({
     assert,
   }) => {
-    const owner = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const other = await User.create({ email: 'other@example.com', password: 'password123' })
+    const owner = await UserFactory.create()
+    const other = await UserFactory.create()
 
     await categoryService.create(owner.id, {
       name: 'Transport',
@@ -50,8 +50,8 @@ test.group('CategoryService', (group) => {
   })
 
   test('findForUser raises when the category belongs to someone else', async ({ assert }) => {
-    const owner = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const attacker = await User.create({ email: 'attacker@example.com', password: 'password123' })
+    const owner = await UserFactory.create()
+    const attacker = await UserFactory.create()
     const category = await categoryService.create(owner.id, {
       name: 'Groceries',
       color: '#22c55e',
@@ -62,7 +62,7 @@ test.group('CategoryService', (group) => {
   })
 
   test('update changes name, color and type', async ({ assert }) => {
-    const user = await User.create({ email: 'owner@example.com', password: 'password123' })
+    const user = await UserFactory.create()
     const category = await categoryService.create(user.id, {
       name: 'Groceries',
       color: '#22c55e',
@@ -81,7 +81,7 @@ test.group('CategoryService', (group) => {
   })
 
   test('archive sets archivedAt without deleting the row', async ({ assert }) => {
-    const user = await User.create({ email: 'owner@example.com', password: 'password123' })
+    const user = await UserFactory.create()
     const category = await categoryService.create(user.id, {
       name: 'Groceries',
       color: '#22c55e',

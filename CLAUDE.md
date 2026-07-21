@@ -123,6 +123,7 @@ start/
   env.ts               # env var validation schema
 database/
   migrations/         # Lucid migrations — the source of truth for table shape
+  factories/           # Lucid model factories, used to build test fixtures (see Testing below)
   schema.ts            # GENERATED — do not edit
 providers/            # custom service providers (e.g. api_provider.ts)
 inertia/
@@ -209,6 +210,8 @@ Notes:
 - `tests/bootstrap.ts` registers both the API-client plugins (`apiClient`, `sessionApiClient`, `authApiClient`, `inertiaApiClient`) and the browser-client plugins (`browserClient`, `sessionBrowserClient`, `authBrowserClient`) — use `client.loginAs(user)` in functional tests and `browserContext.loginAs(user)` in browser tests to authenticate as a given user without going through the login form.
 - CSRF (`config/shield.ts`) is disabled when `NODE_ENV=test` (set by `bin/test.ts`) — functional tests hit routes directly over HTTP without a browser to carry the token round-trip. This only affects the test environment, not dev/production.
 - Wrap DB-touching tests in a transaction that auto-rolls back: `group.each.setup(() => testUtils.db().withGlobalTransaction())`.
+- **Build test fixtures with Lucid model factories** (`database/factories/*`, `node ace make:factory <Model>`), not `Model.create({...})` by hand — see `database/factories/user_factory.ts` / `category_factory.ts` / `transaction_factory.ts`. Use `SomeFactory.create()` for a fixture with sensible random data, `.merge({ ... })` before `.create()` to pin down fields a test actually asserts on or that are required foreign keys with no sensible default (e.g. `CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()`). Reserve calling `Model.create()` (or a service's own `create`) directly for the one thing a given test is actually exercising — don't route the subject-under-test creation through a factory, only its dependencies/fixtures.
+- `UserFactory` always sets `password: 'password123'` (not random) — tests that submit a real login form need a known password to assert against; read the email off the created user (`user.email`) instead of hardcoding it.
 - `vitest.config.ts` aliases (`~/*`, `@generated/*`) mirror `inertia/tsconfig.json` / `vite.config.ts` — keep them in sync if those change. Frontend tests must live under `inertia/` (not top-level `tests/`) so they're picked up by `inertia/tsconfig.json` (DOM lib) instead of the server `tsconfig.json` (no DOM lib) during `pnpm typecheck`.
 
 ## Git

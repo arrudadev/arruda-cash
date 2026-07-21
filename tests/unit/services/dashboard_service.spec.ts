@@ -1,14 +1,14 @@
 import testUtils from '@adonisjs/core/services/test_utils'
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
-import User from '#models/user'
+import { CategoryFactory } from '#database/factories/category_factory'
+import { TransactionFactory } from '#database/factories/transaction_factory'
+import { UserFactory } from '#database/factories/user_factory'
 import { CategoryService } from '#services/category_service'
 import { DashboardService } from '#services/dashboard_service'
-import { TransactionService } from '#services/transaction_service'
 
 test.group('DashboardService', (group) => {
   const categoryService = new CategoryService()
-  const transactionService = new TransactionService(categoryService)
   const dashboardService = new DashboardService(categoryService)
 
   group.each.setup(() => testUtils.db().withGlobalTransaction())
@@ -16,46 +16,45 @@ test.group('DashboardService', (group) => {
   test('sums income and expense within the given period, scoped to the user', async ({
     assert,
   }) => {
-    const user = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const other = await User.create({ email: 'other@example.com', password: 'password123' })
-    const groceries = await categoryService.create(user.id, {
-      name: 'Groceries',
-      color: '#22c55e',
+    const user = await UserFactory.create()
+    const other = await UserFactory.create()
+    const groceries = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    const salary = await CategoryFactory.merge({ userId: user.id, type: 'income' }).create()
+    const otherCategory = await CategoryFactory.merge({
+      userId: other.id,
       type: 'expense',
-    })
-    const salary = await categoryService.create(user.id, {
-      name: 'Salary',
-      color: '#eab308',
-      type: 'income',
-    })
-    const otherCategory = await categoryService.create(other.id, {
-      name: 'Other',
-      color: '#000000',
-      type: 'expense',
-    })
+    }).create()
 
-    await transactionService.create(user.id, {
+    await TransactionFactory.merge({
+      userId: user.id,
       categoryId: groceries.id,
-      amount: 100,
+      type: 'expense',
+      amount: 10000,
       date: DateTime.fromISO('2026-07-10'),
-    })
-    await transactionService.create(user.id, {
+    }).create()
+    await TransactionFactory.merge({
+      userId: user.id,
       categoryId: salary.id,
-      amount: 1000,
+      type: 'income',
+      amount: 100000,
       date: DateTime.fromISO('2026-07-15'),
-    })
+    }).create()
     // Outside the period — must not count.
-    await transactionService.create(user.id, {
+    await TransactionFactory.merge({
+      userId: user.id,
       categoryId: groceries.id,
-      amount: 500,
+      type: 'expense',
+      amount: 50000,
       date: DateTime.fromISO('2026-06-15'),
-    })
+    }).create()
     // Another user's data — must not count.
-    await transactionService.create(other.id, {
+    await TransactionFactory.merge({
+      userId: other.id,
       categoryId: otherCategory.id,
-      amount: 999,
+      type: 'expense',
+      amount: 99900,
       date: DateTime.fromISO('2026-07-10'),
-    })
+    }).create()
 
     const summary = await dashboardService.getSummary(user.id, {
       from: '2026-07-01',
@@ -68,7 +67,7 @@ test.group('DashboardService', (group) => {
   })
 
   test('defaults to the current month when no period is given', async ({ assert }) => {
-    const user = await User.create({ email: 'owner@example.com', password: 'password123' })
+    const user = await UserFactory.create()
 
     const summary = await dashboardService.getSummary(user.id, {})
 
@@ -80,17 +79,15 @@ test.group('DashboardService', (group) => {
   test('breakdown includes archived categories that have transactions in the period', async ({
     assert,
   }) => {
-    const user = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const category = await categoryService.create(user.id, {
-      name: 'Old subscription',
-      color: '#ef4444',
-      type: 'expense',
-    })
-    await transactionService.create(user.id, {
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    await TransactionFactory.merge({
+      userId: user.id,
       categoryId: category.id,
-      amount: 20,
+      type: 'expense',
+      amount: 2000,
       date: DateTime.fromISO('2026-07-10'),
-    })
+    }).create()
     await categoryService.archive(category)
 
     const summary = await dashboardService.getSummary(user.id, {

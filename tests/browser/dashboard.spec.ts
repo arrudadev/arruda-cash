@@ -1,9 +1,9 @@
 import testUtils from '@adonisjs/core/services/test_utils'
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
-import Category from '#models/category'
-import Transaction from '#models/transaction'
-import User from '#models/user'
+import { CategoryFactory } from '#database/factories/category_factory'
+import { TransactionFactory } from '#database/factories/transaction_factory'
+import { UserFactory } from '#database/factories/user_factory'
 
 test.group('Dashboard (browser)', (group) => {
   group.each.setup(() => testUtils.db().withGlobalTransaction())
@@ -12,20 +12,19 @@ test.group('Dashboard (browser)', (group) => {
     browserContext,
     visit,
   }) => {
-    const user = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const category = await Category.create({
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({
       userId: user.id,
       name: 'Groceries',
-      color: '#22c55e',
       type: 'expense',
-    })
-    await Transaction.create({
+    }).create()
+    await TransactionFactory.merge({
       userId: user.id,
       categoryId: category.id,
       type: 'expense',
       amount: 4250,
       date: DateTime.now(),
-    })
+    }).create()
     await browserContext.loginAs(user)
 
     const page = await visit('/dashboard')
@@ -38,21 +37,20 @@ test.group('Dashboard (browser)', (group) => {
     browserContext,
     visit,
   }) => {
-    const user = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const category = await Category.create({
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({
       userId: user.id,
       name: 'Groceries',
-      color: '#22c55e',
       type: 'expense',
-    })
-    await Transaction.create({
+    }).create()
+    await TransactionFactory.merge({
       userId: user.id,
       categoryId: category.id,
       type: 'expense',
       amount: 4250,
       description: 'Weekly shop',
       date: DateTime.now(),
-    })
+    }).create()
     await browserContext.loginAs(user)
 
     const page = await visit('/dashboard')

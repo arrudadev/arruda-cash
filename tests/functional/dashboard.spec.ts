@@ -1,41 +1,31 @@
 import testUtils from '@adonisjs/core/services/test_utils'
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
-import Category from '#models/category'
-import Transaction from '#models/transaction'
-import User from '#models/user'
+import { CategoryFactory } from '#database/factories/category_factory'
+import { TransactionFactory } from '#database/factories/transaction_factory'
+import { UserFactory } from '#database/factories/user_factory'
 
 test.group('Dashboard', (group) => {
   group.each.setup(() => testUtils.db().withGlobalTransaction())
 
   test('shows totals and breakdown scoped to the user and period', async ({ client, assert }) => {
-    const user = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const groceries = await Category.create({
-      userId: user.id,
-      name: 'Groceries',
-      color: '#22c55e',
-      type: 'expense',
-    })
-    const salary = await Category.create({
-      userId: user.id,
-      name: 'Salary',
-      color: '#eab308',
-      type: 'income',
-    })
-    await Transaction.create({
+    const user = await UserFactory.create()
+    const groceries = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    const salary = await CategoryFactory.merge({ userId: user.id, type: 'income' }).create()
+    await TransactionFactory.merge({
       userId: user.id,
       categoryId: groceries.id,
       type: 'expense',
       amount: 1000,
       date: DateTime.fromISO('2026-07-10'),
-    })
-    await Transaction.create({
+    }).create()
+    await TransactionFactory.merge({
       userId: user.id,
       categoryId: salary.id,
       type: 'income',
       amount: 5000,
       date: DateTime.fromISO('2026-07-15'),
-    })
+    }).create()
 
     const response = await client
       .get('/dashboard')
@@ -60,41 +50,31 @@ test.group('Dashboard', (group) => {
     client,
     assert,
   }) => {
-    const user = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const groceries = await Category.create({
-      userId: user.id,
-      name: 'Groceries',
-      color: '#22c55e',
-      type: 'expense',
-    })
-    const salary = await Category.create({
-      userId: user.id,
-      name: 'Salary',
-      color: '#eab308',
-      type: 'income',
-    })
-    await Transaction.create({
+    const user = await UserFactory.create()
+    const groceries = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    const salary = await CategoryFactory.merge({ userId: user.id, type: 'income' }).create()
+    await TransactionFactory.merge({
       userId: user.id,
       categoryId: groceries.id,
       type: 'expense',
       amount: 1000,
       date: DateTime.fromISO('2026-07-10'),
-    })
-    await Transaction.create({
+    }).create()
+    await TransactionFactory.merge({
       userId: user.id,
       categoryId: salary.id,
       type: 'income',
       amount: 5000,
       date: DateTime.fromISO('2026-07-15'),
-    })
+    }).create()
     // Outside the period — must not be returned.
-    await Transaction.create({
+    await TransactionFactory.merge({
       userId: user.id,
       categoryId: groceries.id,
       type: 'expense',
       amount: 999,
       date: DateTime.fromISO('2026-06-01'),
-    })
+    }).create()
 
     const response = await client
       .get(`/dashboard/categories/${groceries.id}/transactions`)
@@ -107,14 +87,9 @@ test.group('Dashboard', (group) => {
   })
 
   test('category drilldown 404s for a category owned by someone else', async ({ client }) => {
-    const owner = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const attacker = await User.create({ email: 'attacker@example.com', password: 'password123' })
-    const category = await Category.create({
-      userId: owner.id,
-      name: 'Groceries',
-      color: '#22c55e',
-      type: 'expense',
-    })
+    const owner = await UserFactory.create()
+    const attacker = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: owner.id, type: 'expense' }).create()
 
     const response = await client
       .get(`/dashboard/categories/${category.id}/transactions`)
