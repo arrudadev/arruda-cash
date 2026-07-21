@@ -1,6 +1,5 @@
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
-import ArchivedCategoryException from '#exceptions/archived_category_exception'
 // biome-ignore lint/style/useImportType: needed at runtime for @inject()'s reflection metadata
 import { CategoryService } from '#services/category_service'
 // biome-ignore lint/style/useImportType: needed at runtime for @inject()'s reflection metadata
@@ -54,15 +53,9 @@ export default class TransactionsController {
   async store({ request, auth, response, session }: HttpContext) {
     const data = await request.validateUsing(transactionValidator)
 
-    try {
-      await this.transactionService.create(auth.getUserOrFail().id, data)
-    } catch (error) {
-      if (error instanceof ArchivedCategoryException) {
-        session.flash('error', error.message)
-        return response.redirect().back()
-      }
-      throw error
-    }
+    // ArchivedCategoryException self-handles (flashes the error and
+    // redirects back) if the chosen category turns out to be archived.
+    await this.transactionService.create(auth.getUserOrFail().id, data)
 
     session.flash('success', 'Transaction created.')
     response.redirect().back()
@@ -75,15 +68,7 @@ export default class TransactionsController {
     )
     const data = await request.validateUsing(transactionValidator)
 
-    try {
-      await this.transactionService.update(transaction, data)
-    } catch (error) {
-      if (error instanceof ArchivedCategoryException) {
-        session.flash('error', error.message)
-        return response.redirect().back()
-      }
-      throw error
-    }
+    await this.transactionService.update(transaction, data)
 
     session.flash('success', 'Transaction updated.')
     response.redirect().back()
