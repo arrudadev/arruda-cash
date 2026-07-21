@@ -42,6 +42,12 @@ const routes = {
     tokens: [{"old":"/dashboard","type":0,"val":"dashboard","end":""}],
     types: placeholder as Registry['dashboard']['types'],
   },
+  'dashboard.category_transactions': {
+    methods: ["GET","HEAD"],
+    pattern: '/dashboard/categories/:categoryId/transactions',
+    tokens: [{"old":"/dashboard/categories/:categoryId/transactions","type":0,"val":"dashboard","end":""},{"old":"/dashboard/categories/:categoryId/transactions","type":0,"val":"categories","end":""},{"old":"/dashboard/categories/:categoryId/transactions","type":1,"val":"categoryId","end":""},{"old":"/dashboard/categories/:categoryId/transactions","type":0,"val":"transactions","end":""}],
+    types: placeholder as Registry['dashboard.category_transactions']['types'],
+  },
   'session.destroy': {
     methods: ["POST"],
     pattern: '/logout',

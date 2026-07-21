@@ -74,9 +74,21 @@ export interface Registry {
       body: {}
       paramsTuple: []
       params: {}
-      query: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/dashboard').periodValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/dashboard_controller').default['index']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/dashboard_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/dashboard_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'dashboard.category_transactions': {
+    methods: ["GET","HEAD"]
+    pattern: '/dashboard/categories/:categoryId/transactions'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { categoryId: ParamValue }
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/dashboard').periodValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/dashboard_controller').default['categoryTransactions']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/dashboard_controller').default['categoryTransactions']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'session.destroy': {

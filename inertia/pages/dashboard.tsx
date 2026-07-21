@@ -1,10 +1,20 @@
 import { Form, Link } from '@adonisjs/inertia/react'
+import type { Data } from '@generated/data'
 import { endOfMonth, endOfYear, format, startOfMonth, startOfYear, subMonths } from 'date-fns'
+import { useEffect, useState } from 'react'
+import { client } from '~/client'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '~/components/ui/sheet'
 import { formatBRL } from '~/lib/format'
 import { cn } from '~/lib/utils'
 
@@ -17,8 +27,10 @@ type BreakdownItem = {
   total: number
 }
 
+type Period = { from: string; to: string }
+
 type Props = {
-  period: { from: string; to: string }
+  period: Period
   income: number
   expense: number
   balance: number
@@ -31,8 +43,80 @@ function preset(from: Date, to: Date) {
   return { from: format(from, dateFmt), to: format(to, dateFmt) }
 }
 
-function isActivePreset(period: Props['period'], candidate: { from: string; to: string }) {
+function isActivePreset(period: Period, candidate: Period) {
   return period.from === candidate.from && period.to === candidate.to
+}
+
+function CategoryDrilldown({
+  category,
+  period,
+  onOpenChange,
+}: {
+  category: { id: string; name: string } | null
+  period: Period
+  onOpenChange: (open: boolean) => void
+}) {
+  const [transactions, setTransactions] = useState<Data.Transaction[] | null>(null)
+
+  useEffect(() => {
+    if (!category) {
+      setTransactions(null)
+      return
+    }
+
+    let cancelled = false
+    setTransactions(null)
+
+    client
+      .request('dashboard.category_transactions', {
+        params: { categoryId: category.id },
+        query: { from: period.from, to: period.to },
+      })
+      .safe()
+      .then(([result]) => {
+        if (!cancelled) {
+          setTransactions(result?.data ?? [])
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [category, period])
+
+  return (
+    <Sheet open={category !== null} onOpenChange={onOpenChange}>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>{category?.name}</SheetTitle>
+          <SheetDescription>Transactions in the selected period.</SheetDescription>
+        </SheetHeader>
+        <div className="flex flex-col gap-3 px-4">
+          {transactions === null && <p className="text-sm text-muted-foreground">Loading...</p>}
+          {transactions?.length === 0 && (
+            <p className="text-sm text-muted-foreground">No transactions found.</p>
+          )}
+          {transactions?.map((transaction) => (
+            <div key={transaction.id} className="flex items-center justify-between text-sm">
+              <div>
+                <p className="font-medium">{transaction.description ?? '—'}</p>
+                <p className="text-muted-foreground">{(transaction.date ?? '').slice(0, 10)}</p>
+              </div>
+              <span
+                className={cn(
+                  'font-medium',
+                  transaction.type === 'income' ? 'text-green-600' : 'text-destructive'
+                )}
+              >
+                {transaction.type === 'income' ? '+' : '-'}
+                {formatBRL(transaction.amount)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </SheetContent>
+    </Sheet>
+  )
 }
 
 export default function Dashboard({ period, income, expense, balance, breakdown }: Props) {
@@ -47,6 +131,9 @@ export default function Dashboard({ period, income, expense, balance, breakdown 
   ]
 
   const maxTotal = Math.max(...breakdown.map((item) => item.total), 1)
+  const [selectedCategory, setSelectedCategory] = useState<{ id: string; name: string } | null>(
+    null
+  )
 
   return (
     <div className="py-10">
@@ -135,7 +222,12 @@ export default function Dashboard({ period, income, expense, balance, breakdown 
             </p>
           )}
           {breakdown.map((item) => (
-            <div key={item.categoryId} className="flex items-center gap-3">
+            <button
+              key={item.categoryId}
+              type="button"
+              className="flex items-center gap-3 rounded-md p-1 text-left hover:bg-accent"
+              onClick={() => setSelectedCategory({ id: item.categoryId, name: item.name })}
+            >
               <span
                 className="size-3 shrink-0 rounded-full"
                 style={{ backgroundColor: item.color }}
@@ -160,10 +252,16 @@ export default function Dashboard({ period, income, expense, balance, breakdown 
                   />
                 </div>
               </div>
-            </div>
+            </button>
           ))}
         </CardContent>
       </Card>
+
+      <CategoryDrilldown
+        category={selectedCategory}
+        period={period}
+        onOpenChange={(open) => !open && setSelectedCategory(null)}
+      />
     </div>
   )
 }

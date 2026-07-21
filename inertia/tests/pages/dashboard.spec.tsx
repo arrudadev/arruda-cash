@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import Dashboard from '~/pages/dashboard'
@@ -26,6 +27,14 @@ vi.mock('@adonisjs/inertia/react', () => ({
   }: { children: ReactNode; route: string; data?: unknown } & Record<string, unknown>) => (
     <a {...props}>{children}</a>
   ),
+}))
+
+const requestMock = vi.fn()
+
+vi.mock('~/client', () => ({
+  client: {
+    request: (...args: unknown[]) => requestMock(...args),
+  },
 }))
 
 describe('Dashboard', () => {
@@ -96,5 +105,58 @@ describe('Dashboard', () => {
 
     expect(screen.getByLabelText('From')).toHaveValue('2026-07-01')
     expect(screen.getByLabelText('To')).toHaveValue('2026-07-31')
+  })
+
+  it('opens a drilldown panel with that category transactions when clicked', async () => {
+    requestMock.mockReturnValue({
+      safe: () =>
+        Promise.resolve([
+          {
+            data: [
+              {
+                id: 'txn-1',
+                type: 'expense',
+                amount: 2000,
+                description: 'Weekly shop',
+                date: '2026-07-10',
+                createdAt: '2026-07-10T00:00:00.000+00:00',
+                category: null,
+              },
+            ],
+          },
+          null,
+        ]),
+    })
+
+    const user = userEvent.setup()
+    render(
+      <Dashboard
+        period={{ from: '2026-07-01', to: '2026-07-31' }}
+        income={0}
+        expense={2000}
+        balance={-2000}
+        breakdown={[
+          {
+            categoryId: 'cat-1',
+            name: 'Groceries',
+            color: '#22c55e',
+            type: 'expense',
+            archived: false,
+            total: 2000,
+          },
+        ]}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: /Groceries/ }))
+
+    expect(requestMock).toHaveBeenCalledWith('dashboard.category_transactions', {
+      params: { categoryId: 'cat-1' },
+      query: { from: '2026-07-01', to: '2026-07-31' },
+    })
+    expect(screen.getByRole('dialog', { name: 'Groceries' })).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('Weekly shop')).toBeInTheDocument()
+    })
   })
 })

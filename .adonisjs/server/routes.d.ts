@@ -10,6 +10,7 @@ export type ScannedRoutes = {
     'invite.create': { paramsTuple?: []; params?: {} }
     'invite.store': { paramsTuple?: []; params?: {} }
     'dashboard': { paramsTuple?: []; params?: {} }
+    'dashboard.category_transactions': { paramsTuple: [ParamValue]; params: {'categoryId': ParamValue} }
     'session.destroy': { paramsTuple?: []; params?: {} }
     'categories.index': { paramsTuple?: []; params?: {} }
     'categories.store': { paramsTuple?: []; params?: {} }
@@ -25,6 +26,7 @@ export type ScannedRoutes = {
     'session.create': { paramsTuple?: []; params?: {} }
     'invite.create': { paramsTuple?: []; params?: {} }
     'dashboard': { paramsTuple?: []; params?: {} }
+    'dashboard.category_transactions': { paramsTuple: [ParamValue]; params: {'categoryId': ParamValue} }
     'categories.index': { paramsTuple?: []; params?: {} }
     'transactions.index': { paramsTuple?: []; params?: {} }
   }
@@ -33,6 +35,7 @@ export type ScannedRoutes = {
     'session.create': { paramsTuple?: []; params?: {} }
     'invite.create': { paramsTuple?: []; params?: {} }
     'dashboard': { paramsTuple?: []; params?: {} }
+    'dashboard.category_transactions': { paramsTuple: [ParamValue]; params: {'categoryId': ParamValue} }
     'categories.index': { paramsTuple?: []; params?: {} }
     'transactions.index': { paramsTuple?: []; params?: {} }
   }

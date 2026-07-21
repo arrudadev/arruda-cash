@@ -26,6 +26,10 @@ router
 router
   .group(() => {
     router.get('dashboard', [controllers.Dashboard, 'index']).as('dashboard')
+    router.get('dashboard/categories/:categoryId/transactions', [
+      controllers.Dashboard,
+      'categoryTransactions',
+    ])
     router.post('logout', [controllers.Session, 'destroy'])
 
     router.get('categories', [controllers.Categories, 'index'])

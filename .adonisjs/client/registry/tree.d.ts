@@ -12,7 +12,9 @@ export interface ApiDefinition {
     create: typeof routes['invite.create']
     store: typeof routes['invite.store']
   }
-  dashboard: typeof routes['dashboard']
+  dashboard: typeof routes['dashboard'] & {
+    categoryTransactions: typeof routes['dashboard.category_transactions']
+  }
   categories: {
     index: typeof routes['categories.index']
     store: typeof routes['categories.store']

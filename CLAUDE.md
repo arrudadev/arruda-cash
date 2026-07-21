@@ -174,7 +174,9 @@ inertia/tests/                 # Vitest + React Testing Library component tests 
 
 ## API responses
 
-- `providers/api_provider.ts` attaches `ctx.serialize()` / `ctx.serialize.withoutWrapping()` to every `HttpContext`, wrapping payloads as `{ data }` (and handling Lucid pagination meta). Use this when adding JSON API endpoints instead of hand-rolling response shapes.
+- `providers/api_provider.ts` attaches `ctx.serialize()` / `ctx.serialize.withoutWrapping()` to every `HttpContext`, wrapping payloads as `{ data }` (and handling Lucid pagination meta). Use this when adding JSON API endpoints (routes returning JSON directly, not `inertia.render()`) instead of hand-rolling response shapes.
+- `ctx.serialize()` only resolves `Item`/`Collection`/`Paginator` wrapper instances — the objects a transformer's `.transform()` call returns. Passing raw Lucid model instances straight to `ctx.serialize()` does **not** run them through their transformer or wrap them; it silently falls back to the models' own `toJSON()` (leaking every column, including ones a transformer would normally drop). Always transform first, then serialize: `return serialize(SomeTransformer.transform(rows))` (see `DashboardController.categoryTransactions`). This is unrelated to `inertia.render()` props, where passing `SomeTransformer.transform(rows)` directly is correct and expected — Inertia's own response pipeline resolves those wrapper instances for you.
+- A JSON endpoint's query params get typed by Tuyau (`.adonisjs/client/registry/schema.d.ts` → non-empty `query`) only if the controller calls `request.validateUsing(someValidator)` — Tuyau's codegen statically detects that call to infer the query/body type. Reading `request.qs()` directly (no validator) leaves the generated `query` type as `{}`, and the frontend's typed `client.request(...)` call will reject a `query` argument at compile time even though the route accepts one at runtime.
 
 ## Testing
 

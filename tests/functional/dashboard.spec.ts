@@ -55,4 +55,71 @@ test.group('Dashboard', (group) => {
 
     response.assertRedirectsTo('/login')
   })
+
+  test('category drilldown returns that category transactions in the period', async ({
+    client,
+    assert,
+  }) => {
+    const user = await User.create({ email: 'owner@example.com', password: 'password123' })
+    const groceries = await Category.create({
+      userId: user.id,
+      name: 'Groceries',
+      color: '#22c55e',
+      type: 'expense',
+    })
+    const salary = await Category.create({
+      userId: user.id,
+      name: 'Salary',
+      color: '#eab308',
+      type: 'income',
+    })
+    await Transaction.create({
+      userId: user.id,
+      categoryId: groceries.id,
+      type: 'expense',
+      amount: 1000,
+      date: DateTime.fromISO('2026-07-10'),
+    })
+    await Transaction.create({
+      userId: user.id,
+      categoryId: salary.id,
+      type: 'income',
+      amount: 5000,
+      date: DateTime.fromISO('2026-07-15'),
+    })
+    // Outside the period — must not be returned.
+    await Transaction.create({
+      userId: user.id,
+      categoryId: groceries.id,
+      type: 'expense',
+      amount: 999,
+      date: DateTime.fromISO('2026-06-01'),
+    })
+
+    const response = await client
+      .get(`/dashboard/categories/${groceries.id}/transactions`)
+      .qs({ from: '2026-07-01', to: '2026-07-31' })
+      .loginAs(user)
+
+    response.assertOk()
+    assert.lengthOf(response.body().data, 1)
+    assert.equal(response.body().data[0].amount, 1000)
+  })
+
+  test('category drilldown 404s for a category owned by someone else', async ({ client }) => {
+    const owner = await User.create({ email: 'owner@example.com', password: 'password123' })
+    const attacker = await User.create({ email: 'attacker@example.com', password: 'password123' })
+    const category = await Category.create({
+      userId: owner.id,
+      name: 'Groceries',
+      color: '#22c55e',
+      type: 'expense',
+    })
+
+    const response = await client
+      .get(`/dashboard/categories/${category.id}/transactions`)
+      .loginAs(attacker)
+
+    response.assertStatus(404)
+  })
 })

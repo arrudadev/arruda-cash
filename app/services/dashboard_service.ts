@@ -1,6 +1,7 @@
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import Transaction from '#models/transaction'
+import { CategoryService } from '#services/category_service'
 
 type PeriodFilters = {
   from?: string
@@ -68,6 +69,22 @@ async function getSummary(userId: string, filters: PeriodFilters) {
   }
 }
 
+async function getCategoryTransactions(userId: string, categoryId: string, filters: PeriodFilters) {
+  const { from, to } = resolvePeriod(filters)
+
+  // Raises a 404 when the category doesn't exist or belongs to someone else.
+  await CategoryService.findForUser(userId, categoryId)
+
+  return Transaction.query()
+    .where('userId', userId)
+    .where('categoryId', categoryId)
+    .where('date', '>=', from)
+    .where('date', '<=', to)
+    .preload('category')
+    .orderBy('date', 'desc')
+}
+
 export const DashboardService = {
   getSummary,
+  getCategoryTransactions,
 }
