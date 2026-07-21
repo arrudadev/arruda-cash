@@ -1,7 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { DateTime } from 'luxon'
 import Invite from '#models/invite'
-import User from '#models/user'
+import { AuthService } from '#services/auth_service'
+import { InviteService } from '#services/invite_service'
 import { acceptInviteValidator } from '#validators/user'
 
 export default class InviteController {
@@ -23,22 +23,13 @@ export default class InviteController {
   async store({ request, auth, response, session }: HttpContext) {
     const { token, password } = await request.validateUsing(acceptInviteValidator)
 
-    const invite = await Invite.verify(token)
-    if (!invite) {
+    const user = await InviteService.acceptInvite(token, password)
+    if (!user) {
       session.flash('error', 'This invite link is invalid or has expired.')
       return response.redirect().back()
     }
 
-    const user = await User.create({
-      email: invite.email,
-      fullName: invite.fullName,
-      password,
-    })
-
-    invite.acceptedAt = DateTime.now()
-    await invite.save()
-
-    await auth.use('web').login(user)
+    await AuthService.login(auth, user)
     response.redirect().toRoute('dashboard')
   }
 }

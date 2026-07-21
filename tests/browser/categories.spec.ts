@@ -5,7 +5,7 @@ import User from '#models/user'
 test.group('Categories (browser)', (group) => {
   group.each.setup(() => testUtils.db().withGlobalTransaction())
 
-  test('user creates a category from the UI', async ({ browserContext, visit, assert }) => {
+  test('user creates a category from the UI', async ({ browserContext, visit }) => {
     const user = await User.create({ email: 'owner@example.com', password: 'password123' })
     await browserContext.loginAs(user)
 
@@ -17,8 +17,6 @@ test.group('Categories (browser)', (group) => {
     await page.getByRole('button', { name: 'Create category' }).click()
 
     await page.assertUrlContains('/categories')
-    await page.assertTextContains('body', 'Groceries')
-
-    assert.equal(await page.locator('td', { hasText: 'Groceries' }).count(), 1)
+    await page.assertElementsCount(page.locator('td', { hasText: 'Groceries' }), 1)
   })
 })

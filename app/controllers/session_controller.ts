@@ -1,5 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import User from '#models/user'
+import { AuthService } from '#services/auth_service'
 
 export default class SessionController {
   async create({ inertia }: HttpContext) {
@@ -8,14 +8,13 @@ export default class SessionController {
 
   async store({ request, auth, response }: HttpContext) {
     const { email, password } = request.all()
-    const user = await User.verifyCredentials(email, password)
+    await AuthService.attempt(auth, email, password)
 
-    await auth.use('web').login(user)
     response.redirect().toRoute('dashboard')
   }
 
   async destroy({ auth, response }: HttpContext) {
-    await auth.use('web').logout()
+    await AuthService.logout(auth)
     response.redirect().toRoute('session.create')
   }
 }
