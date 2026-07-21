@@ -11,7 +11,7 @@ Guidance for AI agents working in this repository.
 - **Tuyau** (`@tuyau/core`) — generates a typed API client and a route registry consumed by the frontend and by `start/routes.ts`.
 - **Biome** for linting/formatting (not ESLint/Prettier).
 - **Tailwind CSS v4 + shadcn/ui** for styling.
-- **Japa** for tests (unit / functional / browser suites).
+- **Japa** for backend tests (unit / functional / browser suites) + **Vitest + React Testing Library** for frontend component tests.
 
 Run everything with `pnpm`, not `npm`/`yarn` — `pnpm-lock.yaml` is the source of truth.
 
@@ -85,6 +85,7 @@ node ace make:model <Name> -m         # app/models + migration
 node ace make:migration <name>
 node ace make:validator <name>
 node ace make:middleware <name>
+node ace make:service <name>          # app/services
 node ace migration:run                # apply pending migrations, regenerates database/schema.ts
 node ace migration:fresh               # drop + re-run all migrations (dev only)
 node ace serve --hmr                  # dev server (also `pnpm dev`)
@@ -111,6 +112,7 @@ Either way, Mailpit's UI is at `localhost:8025`.
 app/
   controllers/      # HTTP controllers, referenced via #generated/controllers in routes
   models/           # Lucid models, compose generated *Schema classes from database/schema.ts
+  services/         # business logic (queries + mutations), called from controllers
   validators/       # VineJS validators
   middleware/        # auth, guest, silent_auth, inertia, container_bindings
   transformers/      # response-shaping (picks/renames fields for JSON/Inertia props)
@@ -132,7 +134,14 @@ inertia/
   css/app.css           # Tailwind entry + theme tokens
 tests/
   unit/ functional/ browser/   # Japa suites (see adonisrc.ts `tests.suites`)
+inertia/tests/                 # Vitest + React Testing Library component tests (see Testing below)
 ```
+
+## Services
+
+- Controllers stay thin: validate the request, delegate to a service, shape the response. Business logic (queries, mutations, cross-cutting rules like scoping by user or soft-delete semantics) lives in `app/services/*`, not in the controller.
+- Services are plain objects of exported functions (not classes with only static members — Biome's `noStaticOnlyClass` rule forbids that), e.g. `export const CategoryService = { listForUser, create, update, archive }`, imported via `#services/category_service`. See `app/services/category_service.ts` for the pattern.
+- Generate new ones with `node ace make:service <name>` (place in `app/services/`, `#services/*` import alias already wired in `package.json`).
 
 ## Auth
 
@@ -147,6 +156,7 @@ tests/
 ## Database
 
 - **Local development uses SQLite** (`better-sqlite3`, file at `tmp/db.sqlite3`) — this is the default `connection` in `config/database.ts` and requires no setup.
+- **Tests use a separate SQLite file** (`tmp/test.sqlite3`, selected via `app.inTest` in `config/database.ts`) so `node ace test` never reads/writes the dev database. `tests/bootstrap.ts` runs `testUtils.db().migrate()` once as a global `runnerHooks.setup` to create the schema there (and tears it down after the run); per-test isolation on top of that comes from `group.each.setup(() => testUtils.db().withGlobalTransaction())` in each suite.
 - **Turso** is supported for staging/production via the `turso` connection in `config/database.ts` (`client: 'libsql'`), driven entirely by env vars (`TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`). Switch by setting `DB_CONNECTION=turso` (and the two vars above) — do not change the code default away from `sqlite`.
 - Primary keys are **UUID strings** (`selfAssignPrimaryKey = true` + a `@beforeCreate` hook generating the id), not auto-increment integers. Follow this pattern for new tables: `table.string('id').primary()` in the migration, matching self-assign + hook in the model.
 
@@ -168,8 +178,33 @@ tests/
 
 ## Testing
 
-- Japa suites: `tests/unit`, `tests/functional`, `tests/browser` (see `adonisrc.ts` → `tests.suites`).
-- Run with `node ace test` (or `pnpm test`); a suite can be targeted with `node ace test <suite>`.
+**Every change must ship with test coverage for what it touches — this is not optional.** No new controller/service/model/validator/page/component lands without a test at the matching layer below. If you're touching a file that's currently untested, add coverage for it as part of your change instead of leaving the gap — don't scope it out just because it predates your change.
+
+Four layers, each with a different job — don't substitute one for another:
+
+| Layer | Tool | Location | Tests |
+|---|---|---|---|
+| Unit | Japa | `tests/unit/` (mirrors `app/`, e.g. `tests/unit/services/`, `tests/unit/validators/`) | Pure logic in isolation: services, validators, model methods/getters — no HTTP, no auth middleware |
+| Functional | Japa + `@japa/api-client` | `tests/functional/` | Full HTTP request → response for a route: status codes, redirects, validation errors, scoping/authorization, DB side effects |
+| Frontend component | Vitest + React Testing Library | `inertia/tests/` (mirrors `inertia/pages/`) | A page/component in isolation: renders correctly, filters/toggles work, dialogs open, form fields present. Mock `@adonisjs/inertia/react`'s `Form`/`Link` (see `inertia/tests/pages/categories_index.spec.tsx`) — don't pull in a real Inertia runtime |
+| Browser (e2e) | Japa + `@japa/browser-client` (Playwright, real Chromium) | `tests/browser/` | One critical path per feature, driven through the real UI in a real browser: login → navigate → submit a form → assert the result. Not for every case — functional/component tests cover the edge cases faster |
+
+Commands:
+
+```sh
+node ace test                # all Japa suites (unit + functional + browser) — also `pnpm test`
+node ace test unit           # one suite at a time
+node ace test functional
+node ace test browser        # needs Chromium: `npx playwright install chromium` once per machine
+pnpm test:frontend           # Vitest run (component tests)
+```
+
+Notes:
+
+- `tests/bootstrap.ts` registers both the API-client plugins (`apiClient`, `sessionApiClient`, `authApiClient`, `inertiaApiClient`) and the browser-client plugins (`browserClient`, `sessionBrowserClient`, `authBrowserClient`) — use `client.loginAs(user)` in functional tests and `browserContext.loginAs(user)` in browser tests to authenticate as a given user without going through the login form.
+- CSRF (`config/shield.ts`) is disabled when `NODE_ENV=test` (set by `bin/test.ts`) — functional tests hit routes directly over HTTP without a browser to carry the token round-trip. This only affects the test environment, not dev/production.
+- Wrap DB-touching tests in a transaction that auto-rolls back: `group.each.setup(() => testUtils.db().withGlobalTransaction())`.
+- `vitest.config.ts` aliases (`~/*`, `@generated/*`) mirror `inertia/tsconfig.json` / `vite.config.ts` — keep them in sync if those change. Frontend tests must live under `inertia/` (not top-level `tests/`) so they're picked up by `inertia/tsconfig.json` (DOM lib) instead of the server `tsconfig.json` (no DOM lib) during `pnpm typecheck`.
 
 ## Git
 

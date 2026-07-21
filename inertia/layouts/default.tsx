@@ -48,6 +48,18 @@ export default function Layout({ children }: { children: ReactElement<Data.Share
               <>
                 <Link
                   route="dashboard"
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  route="categories.index"
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground"
+                >
+                  Categories
+                </Link>
+                <Link
+                  route="dashboard"
                   className="flex size-9 items-center justify-center rounded-full bg-secondary text-sm font-medium text-secondary-foreground"
                 >
                   {children.props.user.initials}

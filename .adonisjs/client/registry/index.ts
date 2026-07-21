@@ -48,6 +48,30 @@ const routes = {
     tokens: [{"old":"/logout","type":0,"val":"logout","end":""}],
     types: placeholder as Registry['session.destroy']['types'],
   },
+  'categories.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/categories',
+    tokens: [{"old":"/categories","type":0,"val":"categories","end":""}],
+    types: placeholder as Registry['categories.index']['types'],
+  },
+  'categories.store': {
+    methods: ["POST"],
+    pattern: '/categories',
+    tokens: [{"old":"/categories","type":0,"val":"categories","end":""}],
+    types: placeholder as Registry['categories.store']['types'],
+  },
+  'categories.update': {
+    methods: ["PUT"],
+    pattern: '/categories/:id',
+    tokens: [{"old":"/categories/:id","type":0,"val":"categories","end":""},{"old":"/categories/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['categories.update']['types'],
+  },
+  'categories.destroy': {
+    methods: ["DELETE"],
+    pattern: '/categories/:id',
+    tokens: [{"old":"/categories/:id","type":0,"val":"categories","end":""},{"old":"/categories/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['categories.destroy']['types'],
+  },
 } as const satisfies Record<string, AdonisEndpoint>
 
 export { routes }

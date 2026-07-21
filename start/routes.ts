@@ -27,5 +27,10 @@ router
   .group(() => {
     router.get('dashboard', [controllers.Dashboard, 'index']).as('dashboard')
     router.post('logout', [controllers.Session, 'destroy'])
+
+    router.get('categories', [controllers.Categories, 'index'])
+    router.post('categories', [controllers.Categories, 'store'])
+    router.put('categories/:id', [controllers.Categories, 'update'])
+    router.delete('categories/:id', [controllers.Categories, 'destroy'])
   })
   .use(middleware.auth())

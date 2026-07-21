@@ -18,9 +18,10 @@ const dbConfig = defineConfig({
 
       connection: {
         /**
-         * Database file location.
+         * Database file location. Tests get their own file (test.sqlite3)
+         * so `node ace test` never touches the dev database.
          */
-        filename: app.tmpPath('db.sqlite3'),
+        filename: app.tmpPath(app.inTest ? 'test.sqlite3' : 'db.sqlite3'),
       },
 
       /**
