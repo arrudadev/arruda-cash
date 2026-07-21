@@ -53,6 +53,12 @@ export default function Layout({ children }: { children: ReactElement<Data.Share
                   Dashboard
                 </Link>
                 <Link
+                  route="transactions.index"
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground"
+                >
+                  Transactions
+                </Link>
+                <Link
                   route="categories.index"
                   className="text-sm font-medium text-muted-foreground hover:text-foreground"
                 >

@@ -72,6 +72,30 @@ const routes = {
     tokens: [{"old":"/categories/:id","type":0,"val":"categories","end":""},{"old":"/categories/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['categories.destroy']['types'],
   },
+  'transactions.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/transactions',
+    tokens: [{"old":"/transactions","type":0,"val":"transactions","end":""}],
+    types: placeholder as Registry['transactions.index']['types'],
+  },
+  'transactions.store': {
+    methods: ["POST"],
+    pattern: '/transactions',
+    tokens: [{"old":"/transactions","type":0,"val":"transactions","end":""}],
+    types: placeholder as Registry['transactions.store']['types'],
+  },
+  'transactions.update': {
+    methods: ["PUT"],
+    pattern: '/transactions/:id',
+    tokens: [{"old":"/transactions/:id","type":0,"val":"transactions","end":""},{"old":"/transactions/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['transactions.update']['types'],
+  },
+  'transactions.destroy': {
+    methods: ["DELETE"],
+    pattern: '/transactions/:id',
+    tokens: [{"old":"/transactions/:id","type":0,"val":"transactions","end":""},{"old":"/transactions/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['transactions.destroy']['types'],
+  },
 } as const satisfies Record<string, AdonisEndpoint>
 
 export { routes }

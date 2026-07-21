@@ -32,5 +32,10 @@ router
     router.post('categories', [controllers.Categories, 'store'])
     router.put('categories/:id', [controllers.Categories, 'update'])
     router.delete('categories/:id', [controllers.Categories, 'destroy'])
+
+    router.get('transactions', [controllers.Transactions, 'index'])
+    router.post('transactions', [controllers.Transactions, 'store'])
+    router.put('transactions/:id', [controllers.Transactions, 'update'])
+    router.delete('transactions/:id', [controllers.Transactions, 'destroy'])
   })
   .use(middleware.auth())

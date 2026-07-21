@@ -139,4 +139,52 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/categories_controller').default['destroy']>>>
     }
   }
+  'transactions.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/transactions'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['index']>>>
+    }
+  }
+  'transactions.store': {
+    methods: ["POST"]
+    pattern: '/transactions'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/transaction').transactionValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/transaction').transactionValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'transactions.update': {
+    methods: ["PUT"]
+    pattern: '/transactions/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/transaction').transactionValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/transaction').transactionValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'transactions.destroy': {
+    methods: ["DELETE"]
+    pattern: '/transactions/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['destroy']>>>
+    }
+  }
 }

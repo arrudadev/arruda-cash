@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
-import { beforeCreate } from '@adonisjs/lucid/orm'
+import { beforeCreate, hasMany } from '@adonisjs/lucid/orm'
+import type { HasMany } from '@adonisjs/lucid/types/relations'
 import { CategorySchema } from '#database/schema'
+import Transaction from '#models/transaction'
 
 /**
  * The two kinds of money movement a category (and, in turn, every
@@ -18,6 +20,9 @@ export default class Category extends CategorySchema {
   }
 
   declare type: CategoryType
+
+  @hasMany(() => Transaction)
+  declare transactions: HasMany<typeof Transaction>
 
   get isArchived() {
     return this.archivedAt !== null

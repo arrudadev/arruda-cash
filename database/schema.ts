@@ -49,6 +49,29 @@ export class InviteSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
+export class TransactionSchema extends BaseModel {
+  static $columns = ['amount', 'categoryId', 'createdAt', 'date', 'description', 'id', 'type', 'updatedAt', 'userId'] as const
+  $columns = TransactionSchema.$columns
+  @column()
+  declare amount: number
+  @column()
+  declare categoryId: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.date()
+  declare date: DateTime
+  @column()
+  declare description: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare type: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare userId: string
+}
+
 export class UserSchema extends BaseModel {
   static $columns = ['createdAt', 'email', 'fullName', 'id', 'password', 'updatedAt'] as const
   $columns = UserSchema.$columns

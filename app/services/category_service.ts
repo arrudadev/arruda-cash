@@ -22,11 +22,15 @@ async function create(userId: string, data: CategoryInput) {
 async function update(category: Category, data: CategoryInput) {
   category.name = data.name
   category.color = data.color
-  // TODO(transactions slice): once transactions exist, lock `type` from
-  // changing for categories that already have transactions attached, so
-  // past transactions' recorded type keeps meaning what it meant when
-  // they were created. No transactions exist yet, so it's always safe.
-  category.type = data.type
+
+  // Once a category has transactions, its type stays locked — changing it
+  // would make past transactions' recorded type stop matching the category
+  // they point to.
+  const hasTransactions = await category.related('transactions').query().first()
+  if (!hasTransactions) {
+    category.type = data.type
+  }
+
   await category.save()
   return category
 }
