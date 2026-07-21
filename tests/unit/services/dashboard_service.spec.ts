@@ -7,6 +7,10 @@ import { DashboardService } from '#services/dashboard_service'
 import { TransactionService } from '#services/transaction_service'
 
 test.group('DashboardService', (group) => {
+  const categoryService = new CategoryService()
+  const transactionService = new TransactionService(categoryService)
+  const dashboardService = new DashboardService(categoryService)
+
   group.each.setup(() => testUtils.db().withGlobalTransaction())
 
   test('sums income and expense within the given period, scoped to the user', async ({
@@ -14,46 +18,46 @@ test.group('DashboardService', (group) => {
   }) => {
     const user = await User.create({ email: 'owner@example.com', password: 'password123' })
     const other = await User.create({ email: 'other@example.com', password: 'password123' })
-    const groceries = await CategoryService.create(user.id, {
+    const groceries = await categoryService.create(user.id, {
       name: 'Groceries',
       color: '#22c55e',
       type: 'expense',
     })
-    const salary = await CategoryService.create(user.id, {
+    const salary = await categoryService.create(user.id, {
       name: 'Salary',
       color: '#eab308',
       type: 'income',
     })
-    const otherCategory = await CategoryService.create(other.id, {
+    const otherCategory = await categoryService.create(other.id, {
       name: 'Other',
       color: '#000000',
       type: 'expense',
     })
 
-    await TransactionService.create(user.id, {
+    await transactionService.create(user.id, {
       categoryId: groceries.id,
       amount: 100,
       date: DateTime.fromISO('2026-07-10'),
     })
-    await TransactionService.create(user.id, {
+    await transactionService.create(user.id, {
       categoryId: salary.id,
       amount: 1000,
       date: DateTime.fromISO('2026-07-15'),
     })
     // Outside the period — must not count.
-    await TransactionService.create(user.id, {
+    await transactionService.create(user.id, {
       categoryId: groceries.id,
       amount: 500,
       date: DateTime.fromISO('2026-06-15'),
     })
     // Another user's data — must not count.
-    await TransactionService.create(other.id, {
+    await transactionService.create(other.id, {
       categoryId: otherCategory.id,
       amount: 999,
       date: DateTime.fromISO('2026-07-10'),
     })
 
-    const summary = await DashboardService.getSummary(user.id, {
+    const summary = await dashboardService.getSummary(user.id, {
       from: '2026-07-01',
       to: '2026-07-31',
     })
@@ -66,7 +70,7 @@ test.group('DashboardService', (group) => {
   test('defaults to the current month when no period is given', async ({ assert }) => {
     const user = await User.create({ email: 'owner@example.com', password: 'password123' })
 
-    const summary = await DashboardService.getSummary(user.id, {})
+    const summary = await dashboardService.getSummary(user.id, {})
 
     const now = DateTime.now()
     assert.equal(summary.from, now.startOf('month').toISODate())
@@ -77,19 +81,19 @@ test.group('DashboardService', (group) => {
     assert,
   }) => {
     const user = await User.create({ email: 'owner@example.com', password: 'password123' })
-    const category = await CategoryService.create(user.id, {
+    const category = await categoryService.create(user.id, {
       name: 'Old subscription',
       color: '#ef4444',
       type: 'expense',
     })
-    await TransactionService.create(user.id, {
+    await transactionService.create(user.id, {
       categoryId: category.id,
       amount: 20,
       date: DateTime.fromISO('2026-07-10'),
     })
-    await CategoryService.archive(category)
+    await categoryService.archive(category)
 
-    const summary = await DashboardService.getSummary(user.id, {
+    const summary = await dashboardService.getSummary(user.id, {
       from: '2026-07-01',
       to: '2026-07-31',
     })

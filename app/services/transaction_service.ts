@@ -1,6 +1,8 @@
+import { inject } from '@adonisjs/core'
 import type { DateTime } from 'luxon'
 import ArchivedCategoryException from '#exceptions/archived_category_exception'
 import Transaction from '#models/transaction'
+// biome-ignore lint/style/useImportType: needed at runtime for @inject()'s reflection metadata
 import { CategoryService } from '#services/category_service'
 
 const PER_PAGE = 20
@@ -25,84 +27,81 @@ function toCents(amountInReais: number) {
   return Math.round(amountInReais * 100)
 }
 
-async function resolveActiveCategory(userId: string, categoryId: string) {
-  const category = await CategoryService.findForUser(userId, categoryId)
-  if (category.archivedAt) {
-    throw new ArchivedCategoryException()
-  }
-  return category
-}
+@inject()
+export class TransactionService {
+  constructor(protected categoryService: CategoryService) {}
 
-async function listForUser(userId: string, filters: TransactionFilters = {}) {
-  const query = Transaction.query()
-    .where('userId', userId)
-    .preload('category')
-    .orderBy('date', 'desc')
-    .orderBy('createdAt', 'desc')
-
-  if (filters.categoryId) {
-    query.where('categoryId', filters.categoryId)
-  }
-  if (filters.type) {
-    query.where('type', filters.type)
-  }
-  if (filters.from) {
-    query.where('date', '>=', filters.from)
-  }
-  if (filters.to) {
-    query.where('date', '<=', filters.to)
-  }
-  if (filters.search) {
-    query.whereLike('description', `%${filters.search}%`)
+  private async resolveActiveCategory(userId: string, categoryId: string) {
+    const category = await this.categoryService.findForUser(userId, categoryId)
+    if (category.archivedAt) {
+      throw new ArchivedCategoryException()
+    }
+    return category
   }
 
-  return query.paginate(filters.page ?? 1, PER_PAGE)
-}
+  async listForUser(userId: string, filters: TransactionFilters = {}) {
+    const query = Transaction.query()
+      .where('userId', userId)
+      .preload('category')
+      .orderBy('date', 'desc')
+      .orderBy('createdAt', 'desc')
 
-async function findForUser(userId: string, id: string) {
-  return Transaction.query()
-    .where('id', id)
-    .where('userId', userId)
-    .preload('category')
-    .firstOrFail()
-}
+    if (filters.categoryId) {
+      query.where('categoryId', filters.categoryId)
+    }
+    if (filters.type) {
+      query.where('type', filters.type)
+    }
+    if (filters.from) {
+      query.where('date', '>=', filters.from)
+    }
+    if (filters.to) {
+      query.where('date', '<=', filters.to)
+    }
+    if (filters.search) {
+      query.whereLike('description', `%${filters.search}%`)
+    }
 
-async function create(userId: string, data: TransactionInput) {
-  const category = await resolveActiveCategory(userId, data.categoryId)
+    return query.paginate(filters.page ?? 1, PER_PAGE)
+  }
 
-  const transaction = await Transaction.create({
-    userId,
-    categoryId: category.id,
-    type: category.type,
-    amount: toCents(data.amount),
-    description: data.description ?? null,
-    date: data.date,
-  })
-  await transaction.load('category')
-  return transaction
-}
+  async findForUser(userId: string, id: string) {
+    return Transaction.query()
+      .where('id', id)
+      .where('userId', userId)
+      .preload('category')
+      .firstOrFail()
+  }
 
-async function update(transaction: Transaction, data: TransactionInput) {
-  const category = await resolveActiveCategory(transaction.userId, data.categoryId)
+  async create(userId: string, data: TransactionInput) {
+    const category = await this.resolveActiveCategory(userId, data.categoryId)
 
-  transaction.categoryId = category.id
-  transaction.type = category.type
-  transaction.amount = toCents(data.amount)
-  transaction.description = data.description ?? null
-  transaction.date = data.date
-  await transaction.save()
-  await transaction.load('category')
-  return transaction
-}
+    const transaction = await Transaction.create({
+      userId,
+      categoryId: category.id,
+      type: category.type,
+      amount: toCents(data.amount),
+      description: data.description ?? null,
+      date: data.date,
+    })
+    await transaction.load('category')
+    return transaction
+  }
 
-async function destroy(transaction: Transaction) {
-  await transaction.delete()
-}
+  async update(transaction: Transaction, data: TransactionInput) {
+    const category = await this.resolveActiveCategory(transaction.userId, data.categoryId)
 
-export const TransactionService = {
-  listForUser,
-  findForUser,
-  create,
-  update,
-  destroy,
+    transaction.categoryId = category.id
+    transaction.type = category.type
+    transaction.amount = toCents(data.amount)
+    transaction.description = data.description ?? null
+    transaction.date = data.date
+    await transaction.save()
+    await transaction.load('category')
+    return transaction
+  }
+
+  async destroy(transaction: Transaction) {
+    await transaction.delete()
+  }
 }

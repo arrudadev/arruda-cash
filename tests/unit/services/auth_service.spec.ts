@@ -13,6 +13,8 @@ function fakeAuth(onLogin: (user: User) => void) {
 }
 
 test.group('AuthService', (group) => {
+  const authService = new AuthService()
+
   group.each.setup(() => testUtils.db().withGlobalTransaction())
 
   test('attempt logs the user in when credentials are valid', async ({ assert }) => {
@@ -22,7 +24,7 @@ test.group('AuthService', (group) => {
       loggedInUserId = loggedIn.id
     })
 
-    const result = await AuthService.attempt(auth, 'owner@example.com', 'password123')
+    const result = await authService.attempt(auth, 'owner@example.com', 'password123')
 
     assert.equal(result.id, user.id)
     assert.equal(loggedInUserId, user.id)
@@ -35,7 +37,7 @@ test.group('AuthService', (group) => {
       called = true
     })
 
-    await assert.rejects(() => AuthService.attempt(auth, 'owner@example.com', 'wrong-password'))
+    await assert.rejects(() => authService.attempt(auth, 'owner@example.com', 'wrong-password'))
     assert.isFalse(called)
   })
 })

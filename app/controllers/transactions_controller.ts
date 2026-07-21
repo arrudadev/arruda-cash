@@ -1,12 +1,21 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import ArchivedCategoryException from '#exceptions/archived_category_exception'
+// biome-ignore lint/style/useImportType: needed at runtime for @inject()'s reflection metadata
 import { CategoryService } from '#services/category_service'
+// biome-ignore lint/style/useImportType: needed at runtime for @inject()'s reflection metadata
 import { TransactionService } from '#services/transaction_service'
 import CategoryTransformer from '#transformers/category_transformer'
 import TransactionTransformer from '#transformers/transaction_transformer'
 import { transactionValidator } from '#validators/transaction'
 
+@inject()
 export default class TransactionsController {
+  constructor(
+    protected transactionService: TransactionService,
+    protected categoryService: CategoryService
+  ) {}
+
   async index({ inertia, auth, request }: HttpContext) {
     const userId = auth.getUserOrFail().id
     const qs = request.qs()
@@ -20,8 +29,8 @@ export default class TransactionsController {
     }
 
     const [transactions, categories] = await Promise.all([
-      TransactionService.listForUser(userId, filters),
-      CategoryService.listForUser(userId),
+      this.transactionService.listForUser(userId, filters),
+      this.categoryService.listForUser(userId),
     ])
 
     return inertia.render('transactions/index', {
@@ -46,7 +55,7 @@ export default class TransactionsController {
     const data = await request.validateUsing(transactionValidator)
 
     try {
-      await TransactionService.create(auth.getUserOrFail().id, data)
+      await this.transactionService.create(auth.getUserOrFail().id, data)
     } catch (error) {
       if (error instanceof ArchivedCategoryException) {
         session.flash('error', error.message)
@@ -60,11 +69,14 @@ export default class TransactionsController {
   }
 
   async update({ request, auth, params, response, session }: HttpContext) {
-    const transaction = await TransactionService.findForUser(auth.getUserOrFail().id, params.id)
+    const transaction = await this.transactionService.findForUser(
+      auth.getUserOrFail().id,
+      params.id
+    )
     const data = await request.validateUsing(transactionValidator)
 
     try {
-      await TransactionService.update(transaction, data)
+      await this.transactionService.update(transaction, data)
     } catch (error) {
       if (error instanceof ArchivedCategoryException) {
         session.flash('error', error.message)
@@ -78,8 +90,11 @@ export default class TransactionsController {
   }
 
   async destroy({ auth, params, response, session }: HttpContext) {
-    const transaction = await TransactionService.findForUser(auth.getUserOrFail().id, params.id)
-    await TransactionService.destroy(transaction)
+    const transaction = await this.transactionService.findForUser(
+      auth.getUserOrFail().id,
+      params.id
+    )
+    await this.transactionService.destroy(transaction)
 
     session.flash('success', 'Transaction deleted.')
     response.redirect().back()
