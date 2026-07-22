@@ -24,6 +24,7 @@ export type ScannedRoutes = {
     'recurring.store': { paramsTuple?: []; params?: {} }
     'recurring.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'recurring.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'recurring.confirm': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   GET: {
     'home': { paramsTuple?: []; params?: {} }
@@ -52,6 +53,7 @@ export type ScannedRoutes = {
     'categories.store': { paramsTuple?: []; params?: {} }
     'transactions.store': { paramsTuple?: []; params?: {} }
     'recurring.store': { paramsTuple?: []; params?: {} }
+    'recurring.confirm': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   PUT: {
     'categories.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

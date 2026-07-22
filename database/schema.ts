@@ -49,6 +49,29 @@ export class InviteSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
+export class RecurringInstanceSchema extends BaseModel {
+  static $columns = ['amount', 'confirmedAt', 'createdAt', 'id', 'periodMonth', 'recurringRuleId', 'transactionId', 'updatedAt', 'userId'] as const
+  $columns = RecurringInstanceSchema.$columns
+  @column()
+  declare amount: number
+  @column.dateTime()
+  declare confirmedAt: DateTime
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column.date()
+  declare periodMonth: DateTime
+  @column()
+  declare recurringRuleId: string
+  @column()
+  declare transactionId: string | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare userId: string
+}
+
 export class RecurringRuleSchema extends BaseModel {
   static $columns = ['amount', 'archivedAt', 'categoryId', 'createdAt', 'dayOfMonth', 'id', 'installmentsTotal', 'kind', 'name', 'startMonth', 'type', 'updatedAt', 'userId'] as const
   $columns = RecurringRuleSchema.$columns

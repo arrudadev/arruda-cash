@@ -4,7 +4,9 @@ import { DateTime } from 'luxon'
 import { CategoryFactory } from '#database/factories/category_factory'
 import { RecurringRuleFactory } from '#database/factories/recurring_rule_factory'
 import { UserFactory } from '#database/factories/user_factory'
+import RecurringInstance from '#models/recurring_instance'
 import RecurringRule from '#models/recurring_rule'
+import Transaction from '#models/transaction'
 
 test.group('Recurring rules', (group) => {
   group.each.setup(() => testUtils.db().withGlobalTransaction())
@@ -196,6 +198,85 @@ test.group('Recurring rules', (group) => {
     assert.isNotNull(rule.archivedAt)
     const stillExists = await RecurringRule.find(rule.id)
     assert.isNotNull(stillExists)
+  })
+
+  test('confirming an instance creates a transaction visible in Transactions', async ({
+    client,
+    assert,
+  }) => {
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    const rule = await RecurringRuleFactory.merge({
+      userId: user.id,
+      categoryId: category.id,
+      type: 'expense',
+      name: 'Netflix',
+      dayOfMonth: 10,
+      startMonth: DateTime.fromISO('2026-07-01'),
+      installmentsTotal: null,
+    }).create()
+
+    const response = await client
+      .post(`/recurring/${rule.id}/confirm`)
+      .loginAs(user)
+      .redirects(0)
+      .form({ month: '2026-07-01', amount: 39.9 })
+
+    response.assertFound()
+
+    const instance = await RecurringInstance.query().where('recurringRuleId', rule.id).firstOrFail()
+    assert.equal(instance.amount, 3990)
+    assert.isNotNull(instance.transactionId)
+
+    const transaction = await Transaction.query().where('userId', user.id).firstOrFail()
+    assert.equal(transaction.description, 'Netflix')
+    assert.equal(transaction.amount, 3990)
+  })
+
+  test('rejects confirming the same rule and month twice', async ({ client, assert }) => {
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    const rule = await RecurringRuleFactory.merge({
+      userId: user.id,
+      categoryId: category.id,
+      type: 'expense',
+      startMonth: DateTime.fromISO('2026-07-01'),
+      installmentsTotal: null,
+    }).create()
+    await client
+      .post(`/recurring/${rule.id}/confirm`)
+      .loginAs(user)
+      .form({ month: '2026-07-01', amount: 39.9 })
+
+    const response = await client
+      .post(`/recurring/${rule.id}/confirm`)
+      .loginAs(user)
+      .redirects(0)
+      .form({ month: '2026-07-01', amount: 39.9 })
+
+    response.assertFound()
+    const count = await RecurringInstance.query()
+      .where('recurringRuleId', rule.id)
+      .count('* as total')
+    assert.equal(count[0].$extras.total, 1)
+  })
+
+  test('a user cannot confirm another user rule', async ({ client }) => {
+    const owner = await UserFactory.create()
+    const attacker = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: owner.id, type: 'expense' }).create()
+    const rule = await RecurringRuleFactory.merge({
+      userId: owner.id,
+      categoryId: category.id,
+      type: 'expense',
+    }).create()
+
+    const response = await client
+      .post(`/recurring/${rule.id}/confirm`)
+      .loginAs(attacker)
+      .form({ month: '2026-07-01', amount: 10 })
+
+    response.assertStatus(404)
   })
 
   test('unauthenticated visitor is redirected away from recurring rules', async ({ client }) => {

@@ -247,4 +247,16 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['destroy']>>>
     }
   }
+  'recurring.confirm': {
+    methods: ["POST"]
+    pattern: '/recurring/:id/confirm'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/recurring_confirm').confirmRecurringInstanceValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/recurring_confirm').confirmRecurringInstanceValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['confirm']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['confirm']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
 }

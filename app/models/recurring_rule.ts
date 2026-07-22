@@ -68,4 +68,14 @@ export default class RecurringRule extends RecurringRuleSchema {
 
     return { applies: true, index, remaining: this.installmentsTotal - index + 1 }
   }
+
+  /**
+   * The actual date a confirmed instance for `month` should land on —
+   * `dayOfMonth` clamped to that month's last day (e.g. day 31 in a 30-day
+   * month becomes the 30th).
+   */
+  anchorDateFor(month: DateTime) {
+    const targetMonth = month.startOf('month')
+    return targetMonth.set({ day: Math.min(this.dayOfMonth, targetMonth.daysInMonth ?? 28) })
+  }
 }

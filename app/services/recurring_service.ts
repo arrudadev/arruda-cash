@@ -1,8 +1,11 @@
 import { inject } from '@adonisjs/core'
 import { DateTime } from 'luxon'
 import ArchivedCategoryException from '#exceptions/archived_category_exception'
+import RecurringInstanceAlreadyConfirmedException from '#exceptions/recurring_instance_already_confirmed_exception'
 import type { CategoryType } from '#models/category'
+import RecurringInstance from '#models/recurring_instance'
 import RecurringRule, { type RecurringKind } from '#models/recurring_rule'
+import Transaction from '#models/transaction'
 // biome-ignore lint/style/useImportType: needed at runtime for @inject()'s reflection metadata
 import { CategoryService } from '#services/category_service'
 import { toCents } from '#services/money'
@@ -29,6 +32,8 @@ type MonthInstance = {
   categoryColor: string
   installmentIndex: number | null
   installmentsTotal: number | null
+  confirmed: boolean
+  transactionId: string | null
 }
 
 @inject()
@@ -96,16 +101,22 @@ export class RecurringService {
   }
 
   /**
-   * Every active rule that applies to `month` — i.e. what's committed, still
-   * "to confirm" (there's no notion of confirmed yet; that arrives once
-   * recurring instances start getting persisted).
+   * Every active rule that applies to `month`, overlaid with whether that
+   * month has already been confirmed (and, if so, the real confirmed
+   * amount rather than the rule's own projected one).
    */
   async getMonthInstances(userId: string, month: DateTime): Promise<MonthInstance[]> {
     const targetMonth = month.startOf('month')
-    const rules = await RecurringRule.query()
-      .where('userId', userId)
-      .whereNull('archivedAt')
-      .preload('category')
+    const monthIso = targetMonth.toISODate() as string
+
+    const [rules, confirmedInstances] = await Promise.all([
+      RecurringRule.query().where('userId', userId).whereNull('archivedAt').preload('category'),
+      RecurringInstance.query().where('userId', userId).where('periodMonth', monthIso),
+    ])
+
+    const confirmedByRuleId = new Map(
+      confirmedInstances.map((instance) => [instance.recurringRuleId, instance])
+    )
 
     const instances: MonthInstance[] = []
     for (const rule of rules) {
@@ -114,18 +125,21 @@ export class RecurringService {
         continue
       }
 
+      const confirmedInstance = confirmedByRuleId.get(rule.id)
       instances.push({
         ruleId: rule.id,
         name: rule.name,
         type: rule.type,
         kind: rule.kind,
-        amount: rule.amount,
+        amount: confirmedInstance?.amount ?? rule.amount,
         dayOfMonth: rule.dayOfMonth,
         categoryId: rule.category.id,
         categoryName: rule.category.name,
         categoryColor: rule.category.color,
         installmentIndex: progress.index,
         installmentsTotal: rule.installmentsTotal,
+        confirmed: confirmedInstance !== undefined,
+        transactionId: confirmedInstance?.transactionId ?? null,
       })
     }
 
@@ -134,18 +148,84 @@ export class RecurringService {
 
   async getCommittedSummary(userId: string, month: DateTime) {
     const instances = await this.getMonthInstances(userId, month)
-    const income = instances
-      .filter((instance) => instance.type === 'income')
-      .reduce((sum, instance) => sum + instance.amount, 0)
-    const expense = instances
-      .filter((instance) => instance.type === 'expense')
-      .reduce((sum, instance) => sum + instance.amount, 0)
+
+    let income = 0
+    let expense = 0
+    let confirmedIncome = 0
+    let confirmedExpense = 0
+
+    for (const instance of instances) {
+      if (instance.type === 'income') {
+        income += instance.amount
+        if (instance.confirmed) {
+          confirmedIncome += instance.amount
+        }
+      } else {
+        expense += instance.amount
+        if (instance.confirmed) {
+          confirmedExpense += instance.amount
+        }
+      }
+    }
 
     return {
       month: month.startOf('month').toISODate() as string,
       income,
       expense,
       balance: income - expense,
+      confirmedIncome,
+      confirmedExpense,
+      pendingIncome: income - confirmedIncome,
+      pendingExpense: expense - confirmedExpense,
     }
+  }
+
+  /**
+   * Confirms `month` for a rule: creates the real Transaction, records the
+   * instance (so it can't be double-confirmed), and — for a variable rule —
+   * carries the confirmed amount forward as the new estimate. Deliberately
+   * skips the archived-category guard: a rule keeps pointing at the
+   * category/type it was created with regardless of what happens to that
+   * category later.
+   */
+  async confirm(userId: string, ruleId: string, month: DateTime, amountInReais: number) {
+    const rule = await this.findForUser(userId, ruleId)
+    const targetMonth = month.startOf('month')
+    const monthIso = targetMonth.toISODate() as string
+
+    const existing = await RecurringInstance.query()
+      .where('recurringRuleId', rule.id)
+      .where('periodMonth', monthIso)
+      .first()
+    if (existing) {
+      throw new RecurringInstanceAlreadyConfirmedException()
+    }
+
+    const amount = toCents(amountInReais)
+
+    const transaction = await Transaction.create({
+      userId,
+      categoryId: rule.categoryId,
+      type: rule.type,
+      amount,
+      description: rule.name,
+      date: rule.anchorDateFor(targetMonth),
+    })
+
+    const instance = await RecurringInstance.create({
+      userId,
+      recurringRuleId: rule.id,
+      periodMonth: targetMonth,
+      amount,
+      transactionId: transaction.id,
+      confirmedAt: DateTime.now(),
+    })
+
+    if (rule.kind === 'variable') {
+      rule.amount = amount
+      await rule.save()
+    }
+
+    return instance
   }
 }

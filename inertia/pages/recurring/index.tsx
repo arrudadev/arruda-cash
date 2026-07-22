@@ -49,6 +49,8 @@ type MonthInstance = {
   categoryColor: string
   installmentIndex: number | null
   installmentsTotal: number | null
+  confirmed: boolean
+  transactionId: string | null
 }
 
 type CommittedSummary = {
@@ -169,12 +171,13 @@ function CommittedSection({
                 <TableHead>Category</TableHead>
                 <TableHead>Installment</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
+                <TableHead>Confirm</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {instances.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                     Nothing committed for this month.
                   </TableCell>
                 </TableRow>
@@ -202,6 +205,43 @@ function CommittedSection({
                   >
                     {instance.type === 'income' ? '+' : '-'}
                     {formatBRL(instance.amount)}
+                  </TableCell>
+                  <TableCell>
+                    {instance.confirmed ? (
+                      <Badge>Confirmed</Badge>
+                    ) : (
+                      <Form
+                        route="recurring.confirm"
+                        routeParams={{ id: instance.ruleId }}
+                        className="flex items-center gap-2"
+                      >
+                        {({ processing }) => (
+                          <>
+                            <input type="hidden" name="month" value={month} />
+                            {instance.kind === 'variable' ? (
+                              <Input
+                                aria-label={`Amount for ${instance.name}`}
+                                name="amount"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                defaultValue={centsToReaisInput(instance.amount)}
+                                className="h-8 w-24"
+                              />
+                            ) : (
+                              <input
+                                type="hidden"
+                                name="amount"
+                                value={centsToReaisInput(instance.amount)}
+                              />
+                            )}
+                            <Button type="submit" size="sm" disabled={processing}>
+                              Confirm
+                            </Button>
+                          </>
+                        )}
+                      </Form>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

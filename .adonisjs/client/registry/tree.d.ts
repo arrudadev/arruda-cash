@@ -32,5 +32,6 @@ export interface ApiDefinition {
     store: typeof routes['recurring.store']
     update: typeof routes['recurring.update']
     destroy: typeof routes['recurring.destroy']
+    confirm: typeof routes['recurring.confirm']
   }
 }

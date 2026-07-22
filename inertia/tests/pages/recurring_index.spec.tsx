@@ -86,6 +86,16 @@ const netflixInstance = {
   categoryColor: groceries.color,
   installmentIndex: null,
   installmentsTotal: null,
+  confirmed: false,
+  transactionId: null,
+}
+
+const electricityInstance = {
+  ...netflixInstance,
+  ruleId: 'rule-electricity',
+  name: 'Electricity',
+  kind: 'variable' as const,
+  amount: 20000,
 }
 
 describe('RecurringIndex', () => {
@@ -186,5 +196,50 @@ describe('RecurringIndex', () => {
     expect(screen.getAllByText('Netflix').length).toBeGreaterThan(0)
     expect(screen.getByText('This month')).toBeInTheDocument()
     expect(screen.getByText('Next month')).toBeInTheDocument()
+  })
+
+  it('offers a one-click confirm for a fixed rule, with no editable amount', () => {
+    render(
+      <RecurringIndex
+        rules={[netflix]}
+        categories={[groceries]}
+        month="2026-07-01"
+        instances={[netflixInstance]}
+        summary={{ month: '2026-07-01', income: 0, expense: 3990, balance: -3990 }}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Amount for Netflix')).not.toBeInTheDocument()
+  })
+
+  it('lets a variable rule confirmation edit the amount before submitting', () => {
+    render(
+      <RecurringIndex
+        rules={[netflix]}
+        categories={[groceries]}
+        month="2026-07-01"
+        instances={[electricityInstance]}
+        summary={{ month: '2026-07-01', income: 0, expense: 20000, balance: -20000 }}
+      />
+    )
+
+    expect(screen.getByLabelText('Amount for Electricity')).toHaveValue(200)
+    expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument()
+  })
+
+  it('shows a confirmed instance as confirmed, with no confirm action', () => {
+    render(
+      <RecurringIndex
+        rules={[netflix]}
+        categories={[groceries]}
+        month="2026-07-01"
+        instances={[{ ...netflixInstance, confirmed: true, transactionId: 'txn-1' }]}
+        summary={{ month: '2026-07-01', income: 0, expense: 3990, balance: -3990 }}
+      />
+    )
+
+    expect(screen.getByText('Confirmed')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Confirm' })).not.toBeInTheDocument()
   })
 })

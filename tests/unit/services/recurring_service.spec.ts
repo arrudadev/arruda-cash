@@ -4,7 +4,9 @@ import { DateTime } from 'luxon'
 import { CategoryFactory } from '#database/factories/category_factory'
 import { UserFactory } from '#database/factories/user_factory'
 import ArchivedCategoryException from '#exceptions/archived_category_exception'
+import RecurringInstanceAlreadyConfirmedException from '#exceptions/recurring_instance_already_confirmed_exception'
 import RecurringRule from '#models/recurring_rule'
+import Transaction from '#models/transaction'
 import { CategoryService } from '#services/category_service'
 import { RecurringService } from '#services/recurring_service'
 
@@ -343,5 +345,146 @@ test.group('RecurringService', (group) => {
     assert.equal(summary.expense, 23990)
     assert.equal(summary.income, 500000)
     assert.equal(summary.balance, 500000 - 23990)
+  })
+
+  test('confirm creates the real transaction and records the instance', async ({ assert }) => {
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    const rule = await recurringService.create(user.id, {
+      categoryId: category.id,
+      name: 'Netflix',
+      amount: 39.9,
+      kind: 'fixed',
+      dayOfMonth: 10,
+      startMonth: DateTime.fromISO('2026-07-01'),
+      installmentsTotal: null,
+    })
+
+    const instance = await recurringService.confirm(
+      user.id,
+      rule.id,
+      DateTime.fromISO('2026-07-01'),
+      39.9
+    )
+
+    assert.equal(instance.amount, 3990)
+    assert.equal(instance.periodMonth.toISODate(), '2026-07-01')
+    assert.isNotNull(instance.transactionId)
+
+    const transaction = await Transaction.findOrFail(instance.transactionId)
+    assert.equal(transaction.userId, user.id)
+    assert.equal(transaction.categoryId, category.id)
+    assert.equal(transaction.type, 'expense')
+    assert.equal(transaction.amount, 3990)
+    assert.equal(transaction.description, 'Netflix')
+    assert.equal(transaction.date.toISODate(), '2026-07-10')
+  })
+
+  test('confirm rejects confirming the same rule and month twice', async ({ assert }) => {
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    const rule = await recurringService.create(user.id, {
+      categoryId: category.id,
+      name: 'Netflix',
+      amount: 39.9,
+      kind: 'fixed',
+      dayOfMonth: 10,
+      startMonth: DateTime.fromISO('2026-07-01'),
+      installmentsTotal: null,
+    })
+    await recurringService.confirm(user.id, rule.id, DateTime.fromISO('2026-07-01'), 39.9)
+
+    await assert.rejects(
+      () => recurringService.confirm(user.id, rule.id, DateTime.fromISO('2026-07-01'), 39.9),
+      RecurringInstanceAlreadyConfirmedException
+    )
+  })
+
+  test('confirming a variable rule carries the confirmed amount forward', async ({ assert }) => {
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    const rule = await recurringService.create(user.id, {
+      categoryId: category.id,
+      name: 'Electricity',
+      amount: 200,
+      kind: 'variable',
+      dayOfMonth: 15,
+      startMonth: DateTime.fromISO('2026-07-01'),
+      installmentsTotal: null,
+    })
+
+    await recurringService.confirm(user.id, rule.id, DateTime.fromISO('2026-07-01'), 320)
+
+    await rule.refresh()
+    assert.equal(rule.amount, 32000)
+  })
+
+  test('confirming a fixed rule does not change its stored amount', async ({ assert }) => {
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    const rule = await recurringService.create(user.id, {
+      categoryId: category.id,
+      name: 'Netflix',
+      amount: 39.9,
+      kind: 'fixed',
+      dayOfMonth: 10,
+      startMonth: DateTime.fromISO('2026-07-01'),
+      installmentsTotal: null,
+    })
+
+    await recurringService.confirm(user.id, rule.id, DateTime.fromISO('2026-07-01'), 39.9)
+
+    await rule.refresh()
+    assert.equal(rule.amount, 3990)
+  })
+
+  test('confirm succeeds even if the rule category has since been archived', async ({ assert }) => {
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    const rule = await recurringService.create(user.id, {
+      categoryId: category.id,
+      name: 'Netflix',
+      amount: 39.9,
+      kind: 'fixed',
+      dayOfMonth: 10,
+      startMonth: DateTime.fromISO('2026-07-01'),
+      installmentsTotal: null,
+    })
+    await categoryService.archive(category)
+
+    const instance = await recurringService.confirm(
+      user.id,
+      rule.id,
+      DateTime.fromISO('2026-07-01'),
+      39.9
+    )
+
+    assert.isNotNull(instance.transactionId)
+  })
+
+  test('getMonthInstances marks a confirmed rule and uses its real confirmed amount', async ({
+    assert,
+  }) => {
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    const rule = await recurringService.create(user.id, {
+      categoryId: category.id,
+      name: 'Electricity',
+      amount: 200,
+      kind: 'variable',
+      dayOfMonth: 15,
+      startMonth: DateTime.fromISO('2026-07-01'),
+      installmentsTotal: null,
+    })
+    await recurringService.confirm(user.id, rule.id, DateTime.fromISO('2026-07-01'), 320)
+
+    const [instance] = await recurringService.getMonthInstances(
+      user.id,
+      DateTime.fromISO('2026-07-01')
+    )
+
+    assert.isTrue(instance.confirmed)
+    assert.equal(instance.amount, 32000)
+    assert.isNotNull(instance.transactionId)
   })
 })

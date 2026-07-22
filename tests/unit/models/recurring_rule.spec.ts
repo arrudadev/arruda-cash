@@ -61,3 +61,24 @@ test.group('RecurringRule#installmentProgress', () => {
     assert.isTrue(rule.installmentProgress().applies)
   })
 })
+
+function ruleAnchoredOn(dayOfMonth: number) {
+  const rule = new RecurringRule()
+  rule.dayOfMonth = dayOfMonth
+  return rule
+}
+
+test.group('RecurringRule#anchorDateFor', () => {
+  test('lands on dayOfMonth for a month long enough to have it', ({ assert }) => {
+    const rule = ruleAnchoredOn(15)
+
+    assert.equal(rule.anchorDateFor(DateTime.fromISO('2026-07-01')).toISODate(), '2026-07-15')
+  })
+
+  test('clamps to the last day of a shorter month', ({ assert }) => {
+    const rule = ruleAnchoredOn(31)
+
+    assert.equal(rule.anchorDateFor(DateTime.fromISO('2026-04-01')).toISODate(), '2026-04-30')
+    assert.equal(rule.anchorDateFor(DateTime.fromISO('2026-02-01')).toISODate(), '2026-02-28')
+  })
+})

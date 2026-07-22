@@ -7,6 +7,7 @@ import { CategoryService } from '#services/category_service'
 import { RecurringService } from '#services/recurring_service'
 import CategoryTransformer from '#transformers/category_transformer'
 import RecurringRuleTransformer from '#transformers/recurring_rule_transformer'
+import { confirmRecurringInstanceValidator } from '#validators/recurring_confirm'
 import { recurringMonthValidator } from '#validators/recurring_month'
 import { recurringRuleValidator } from '#validators/recurring_rule'
 
@@ -65,6 +66,22 @@ export default class RecurringController {
     await this.recurringService.archive(rule)
 
     session.flash('success', 'Recurring rule archived.')
+    response.redirect().back()
+  }
+
+  async confirm({ request, auth, params, response, session }: HttpContext) {
+    const { month, amount } = await request.validateUsing(confirmRecurringInstanceValidator)
+
+    // RecurringInstanceAlreadyConfirmedException self-handles (flashes the
+    // error and redirects back) if this month was already confirmed.
+    await this.recurringService.confirm(
+      auth.getUserOrFail().id,
+      params.id,
+      DateTime.fromISO(month),
+      amount
+    )
+
+    session.flash('success', 'Recurring instance confirmed.')
     response.redirect().back()
   }
 }
