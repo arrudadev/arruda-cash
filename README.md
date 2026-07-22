@@ -26,36 +26,56 @@ See [`CLAUDE.md`](./CLAUDE.md) for the deeper architectural notes (code-generati
 
 - Node.js ≥ 24
 - pnpm (`corepack enable` or `npm i -g pnpm`)
-- Docker, if you want the one-command dev setup (recommended)
+- Docker, only if you want the one-command dev setup, or to run Mailpit (see below) without installing it yourself
 
 ## Getting started
 
-### Option A — Docker Compose (recommended)
+Either option gets you the app at http://localhost:3333, with hot-reload, running against a local SQLite database — no external services required to boot.
 
-Boots the app and a local Mailpit inbox together, with hot-reload.
-
-```sh
-cp .env.example .env
-docker compose run --rm app node ace generate:key   # writes APP_KEY into .env
-make up                                              # builds + starts the stack in the background
-make migrate                                         # first run only, if the DB doesn't exist yet
-```
-
-- App: http://localhost:3333
-- Mailpit (catches invite emails): http://localhost:8025
-
-Run `make help` for the full list of shortcuts (`invite`, `logs`, `shell`, `test`, `lint`, `typecheck`, `down`, ...).
-
-### Option B — Native
+### Option A — Native (no Docker)
 
 ```sh
 cp .env.example .env
 pnpm install
 node ace generate:key      # writes APP_KEY into .env
 node ace migration:run
-docker run -d --name mailpit -p 1025:1025 -p 8025:8025 axllent/mailpit
 pnpm dev
 ```
+
+### Option B — Docker Compose
+
+Same thing, containerized (`Dockerfile.dev`, hot-reload via bind mount):
+
+```sh
+cp .env.example .env
+docker compose run --rm app node ace generate:key   # writes APP_KEY into .env
+make up                                              # builds + starts app (+ Mailpit) in the background
+make migrate                                         # first run only, if the DB doesn't exist yet
+```
+
+Run `make help` for the full list of shortcuts.
+
+### Test data (optional)
+
+Either option, once migrated:
+
+```sh
+make seed   # or: node ace db:seed
+```
+
+Truncates and re-seeds `users`/`categories`/`transactions` with one login-ready user (`dev@najacash.test` / `password123`) plus sample categories and transactions. Only runs against the local SQLite database — refuses to run if `DB_CONNECTION` isn't `sqlite`.
+
+### Testing the invite flow (optional)
+
+The app itself never needs Mailpit — it's only touched when an invite email is actually sent.
+
+```sh
+make invite EMAIL=someone@example.com NAME="Someone"
+```
+
+This boots the full stack (app + Mailpit, if not already running) and creates the invite — no separate step needed. Then open http://localhost:8025, find the email, and follow its link to `/invite/accept?token=...`. Mailpit data isn't persisted (`make down` clears it).
+
+Running natively (Option A) and just want Mailpit on its own? `docker run -d --name mailpit -p 1025:1025 -p 8025:8025 axllent/mailpit`, then `node ace invite:create someone@example.com "Someone"`.
 
 ## Environment variables
 
@@ -70,31 +90,35 @@ Copy `.env.example` to `.env` and fill it in — every variable is documented th
 
 ## Authentication
 
-There is **no public signup**. Accounts are created only through an invite:
-
-```sh
-make invite EMAIL=someone@example.com NAME="Someone"   # Docker Compose
-# or, natively:
-node ace invite:create someone@example.com "Someone"
-```
-
-This emails a link (Mailpit locally) to `/invite/accept?token=...`. The invitee sets a password there, and the account is created and logged in — a login page and a protected `/dashboard` are the only other auth-related routes. Invite tokens expire after 72h and are single-use.
+There is **no public signup**. Accounts are created only through an invite, emailed as a link to `/invite/accept?token=...` — see [Testing the invite flow](#testing-the-invite-flow-optional) above to try it locally. The invitee sets a password there, and the account is created and logged in — a login page and a protected `/dashboard` are the only other auth-related routes. Invite tokens expire after 72h and are single-use.
 
 ## Available commands
 
-**pnpm scripts** (run natively or via `make shell`):
+**pnpm scripts:**
 
 | Command | What it does |
 |---|---|
 | `pnpm dev` | Start the dev server with HMR |
 | `pnpm build` | Production build |
 | `pnpm start` | Run the production build |
-| `pnpm test` | Run the Japa test suites |
+| `pnpm test` | Run the Japa test suites (unit/functional/browser) |
+| `pnpm test:frontend` | Run the Vitest frontend component suite |
 | `pnpm lint` | Biome check |
 | `pnpm format` | Biome check --write |
 | `pnpm typecheck` | TypeScript, server + frontend |
 
-**Makefile** (Docker Compose shortcuts) — `make help` for the full, current list.
+**Makefile** — intentionally minimal, `make help` for the full, current list. Only `up`/`down`/`logs` and the `docker compose up` inside `invite` touch Docker; `migrate`/`migrate-fresh`/`seed`/`test` run natively either way, since they only touch local files and the bind-mounted SQLite db:
+
+| Command | What it does |
+|---|---|
+| `make up` / `make down` | Start/stop the dev stack (app + Mailpit) |
+| `make logs` | Follow the app container logs |
+| `make migrate` / `make migrate-fresh` | Run pending migrations / reset the database |
+| `make seed` | Load local test data (see [Test data](#test-data-optional)) |
+| `make invite EMAIL=... [NAME=...]` | Boot the stack and create an invite |
+| `make test` | Run **every** test type that exists in the app — all Japa suites plus the Vitest frontend suite |
+
+No `lint`/`typecheck`/`shell`/`build`/`repl` wrappers — use the `pnpm` scripts or `docker compose`/`node ace` directly for those.
 
 ## Project structure
 
@@ -108,6 +132,8 @@ config/           # framework/package config (auth, database, mail, ...)
 commands/         # custom ace commands (e.g. invite:create)
 database/
   migrations/     # source of truth for table shape
+  factories/      # Lucid model factories, used by tests
+  seeders/        # `make seed` — local dev/demo data
   schema.ts       # GENERATED — do not edit
 inertia/
   pages/          # one component per Inertia page
@@ -124,10 +150,13 @@ Full conventions (generated files, import aliases, when to regenerate registries
 ## Testing & quality
 
 ```sh
-pnpm test         # Japa suites (unit/functional/browser)
-pnpm lint         # Biome
-pnpm typecheck    # tsc, server + inertia
+pnpm test           # Japa suites (unit/functional/browser)
+pnpm test:frontend  # Vitest (frontend components)
+pnpm lint           # Biome
+pnpm typecheck      # tsc, server + inertia
 ```
+
+Or `make test` to run both the Japa suites and the Vitest suite in one shot — see [Available commands](#available-commands).
 
 ## Deployment notes
 

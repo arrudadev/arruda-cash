@@ -28,5 +28,9 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
-    depends_on:
-      - mailpit
+    # Intentionally no `depends_on: [mailpit]` — the app boots fine without
+    # it. Mailpit is only touched when an invite email is actually sent
+    # (SMTP connects lazily, at send time), so `docker compose up app` /
+    # `docker compose run --rm app ...` shouldn't be forced to also start
+    # Mailpit. `make invite` brings up the full stack (this service +
+    # mailpit) itself before creating the invite.

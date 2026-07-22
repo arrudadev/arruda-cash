@@ -99,12 +99,12 @@ Prefer `node ace make:*` generators over hand-writing new controllers/models/mig
 
 Two ways to run it locally — same `.env`, pick one:
 
-- **Native**: `node ace serve --hmr` (or `pnpm dev`), plus a Mailpit container for catching invite emails: `docker run -d --name mailpit -p 1025:1025 -p 8025:8025 axllent/mailpit`.
-- **Docker Compose**: `docker compose up --build` boots the app (`Dockerfile.dev`, hot-reload via bind mount) and Mailpit together. The app service overrides a few `.env` values for the container network (`HOST=0.0.0.0`, `SMTP_HOST=mailpit`, `APP_URL=http://localhost:3333`) — don't change those in `.env` itself, that file stays correct for native runs. Run ace commands inside it with `docker compose exec app node ace <command>`. Mailpit data is not persisted (`docker compose down` clears it).
+- **Native**: `node ace serve --hmr` (or `pnpm dev`).
+- **Docker Compose**: `make up` (`docker compose up --build -d`) boots the app (`Dockerfile.dev`, hot-reload via bind mount) and Mailpit together. The app service overrides a few `.env` values for the container network (`HOST=0.0.0.0`, `SMTP_HOST=mailpit`, `APP_URL=http://localhost:3333`) — don't change those in `.env` itself, that file stays correct for native runs.
 
-Either way, Mailpit's UI is at `localhost:8025`.
+Mailpit (catches invite emails, UI at `localhost:8025`) is **not** a hard dependency of the app either way — the app boots and serves every route without it; SMTP only gets touched when an invite email is actually sent. `docker-compose.yml` deliberately has no `depends_on` from `app` to `mailpit`, so `docker compose up app` / `docker compose run --rm app ...` won't pull it in as a side effect. `make invite` boots the full stack (`docker compose up --build -d`, i.e. app + Mailpit) before running `node ace invite:create`, so there's no separate "start Mailpit" step to remember — if you're already running the app natively and just want Mailpit standalone, start it by hand: `docker run -d --name mailpit -p 1025:1025 -p 8025:8025 axllent/mailpit`.
 
-**`Makefile`** wraps the Docker Compose commands used day to day — run `make help` for the full list (`make up`, `make migrate`, `make invite EMAIL=... NAME="..."`, `make logs`, `make shell`, `make test`, `make lint`, `make typecheck`, `make down`, ...). All targets assume the stack is already up (`make up` first) and just `docker compose exec`/`docker compose ...` under the hood — nothing here replaces the native `pnpm` scripts, it's purely a shortcut layer for the Docker workflow.
+**`Makefile`** — intentionally minimal, run `make help` for the full, current list. `up`/`down`/`logs` and the `docker compose up` inside `invite` are the only targets that touch Docker; `migrate`, `migrate-fresh`, `seed`, `test` run directly on the host (`node ace ...` / `pnpm ...`) — they only touch local files and the bind-mounted SQLite db, so they don't need the app container. There are no `lint`/`typecheck`/`shell`/`build`/`repl` wrappers — use the `pnpm` scripts or `docker compose`/`node ace` directly for those.
 
 ## Directory structure
 
@@ -124,6 +124,7 @@ start/
 database/
   migrations/         # Lucid migrations — the source of truth for table shape
   factories/           # Lucid model factories, used to build test fixtures (see Testing below)
+  seeders/             # `node ace db:seed` (or `make seed`) — local dev/demo data, not test fixtures
   schema.ts            # GENERATED — do not edit
 providers/            # custom service providers (e.g. api_provider.ts)
 inertia/
