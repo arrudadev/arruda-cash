@@ -47,5 +47,6 @@ router
     router.put('recurring/:id', [controllers.Recurring, 'update'])
     router.delete('recurring/:id', [controllers.Recurring, 'destroy'])
     router.post('recurring/:id/confirm', [controllers.Recurring, 'confirm'])
+    router.delete('recurring/:id/confirm', [controllers.Recurring, 'unconfirm'])
   })
   .use(middleware.auth())

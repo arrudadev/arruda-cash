@@ -7,7 +7,10 @@ import { CategoryService } from '#services/category_service'
 import { RecurringService } from '#services/recurring_service'
 import CategoryTransformer from '#transformers/category_transformer'
 import RecurringRuleTransformer from '#transformers/recurring_rule_transformer'
-import { confirmRecurringInstanceValidator } from '#validators/recurring_confirm'
+import {
+  confirmRecurringInstanceValidator,
+  unconfirmRecurringInstanceValidator,
+} from '#validators/recurring_confirm'
 import { recurringMonthValidator } from '#validators/recurring_month'
 import { recurringRuleValidator } from '#validators/recurring_rule'
 
@@ -82,6 +85,19 @@ export default class RecurringController {
     )
 
     session.flash('success', 'Recurring instance confirmed.')
+    response.redirect().back()
+  }
+
+  async unconfirm({ request, auth, params, response, session }: HttpContext) {
+    const { month } = await request.validateUsing(unconfirmRecurringInstanceValidator)
+
+    await this.recurringService.unconfirm(
+      auth.getUserOrFail().id,
+      params.id,
+      DateTime.fromISO(month)
+    )
+
+    session.flash('success', 'Confirmation undone.')
     response.redirect().back()
   }
 }

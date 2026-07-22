@@ -208,7 +208,19 @@ function CommittedSection({
                   </TableCell>
                   <TableCell>
                     {instance.confirmed ? (
-                      <Badge>Confirmed</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge>Confirmed</Badge>
+                        <Form route="recurring.unconfirm" routeParams={{ id: instance.ruleId }}>
+                          {({ processing }) => (
+                            <>
+                              <input type="hidden" name="month" value={month} />
+                              <Button variant="ghost" size="sm" type="submit" disabled={processing}>
+                                Undo
+                              </Button>
+                            </>
+                          )}
+                        </Form>
+                      </div>
                     ) : (
                       <Form
                         route="recurring.confirm"

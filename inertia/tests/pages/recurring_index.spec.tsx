@@ -242,4 +242,18 @@ describe('RecurringIndex', () => {
     expect(screen.getByText('Confirmed')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Confirm' })).not.toBeInTheDocument()
   })
+
+  it('offers an undo action for a confirmed instance', () => {
+    render(
+      <RecurringIndex
+        rules={[netflix]}
+        categories={[groceries]}
+        month="2026-07-01"
+        instances={[{ ...netflixInstance, confirmed: true, transactionId: 'txn-1' }]}
+        summary={{ month: '2026-07-01', income: 0, expense: 3990, balance: -3990 }}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument()
+  })
 })

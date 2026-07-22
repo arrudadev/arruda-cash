@@ -10,3 +10,10 @@ export const confirmRecurringInstanceValidator = vine.create({
   month: vine.string(),
   amount: vine.number().positive(),
 })
+
+/**
+ * Validator for undoing a confirmation — just needs to know which month.
+ */
+export const unconfirmRecurringInstanceValidator = vine.create({
+  month: vine.string(),
+})

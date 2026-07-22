@@ -5,6 +5,7 @@ import { CategoryFactory } from '#database/factories/category_factory'
 import { UserFactory } from '#database/factories/user_factory'
 import ArchivedCategoryException from '#exceptions/archived_category_exception'
 import RecurringInstanceAlreadyConfirmedException from '#exceptions/recurring_instance_already_confirmed_exception'
+import RecurringInstance from '#models/recurring_instance'
 import RecurringRule from '#models/recurring_rule'
 import Transaction from '#models/transaction'
 import { CategoryService } from '#services/category_service'
@@ -486,5 +487,57 @@ test.group('RecurringService', (group) => {
     assert.isTrue(instance.confirmed)
     assert.equal(instance.amount, 32000)
     assert.isNotNull(instance.transactionId)
+  })
+
+  test('unconfirm deletes the transaction and the instance', async ({ assert }) => {
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    const rule = await recurringService.create(user.id, {
+      categoryId: category.id,
+      name: 'Netflix',
+      amount: 39.9,
+      kind: 'fixed',
+      dayOfMonth: 10,
+      startMonth: DateTime.fromISO('2026-07-01'),
+      installmentsTotal: null,
+    })
+    const instance = await recurringService.confirm(
+      user.id,
+      rule.id,
+      DateTime.fromISO('2026-07-01'),
+      39.9
+    )
+
+    await recurringService.unconfirm(user.id, rule.id, DateTime.fromISO('2026-07-01'))
+
+    const stillExists = await RecurringInstance.find(instance.id)
+    assert.isNull(stillExists)
+    const transaction = await Transaction.find(instance.transactionId)
+    assert.isNull(transaction)
+
+    const [monthInstance] = await recurringService.getMonthInstances(
+      user.id,
+      DateTime.fromISO('2026-07-01')
+    )
+    assert.isFalse(monthInstance.confirmed)
+    assert.equal(monthInstance.amount, 3990)
+  })
+
+  test('unconfirm raises when the month was never confirmed', async ({ assert }) => {
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    const rule = await recurringService.create(user.id, {
+      categoryId: category.id,
+      name: 'Netflix',
+      amount: 39.9,
+      kind: 'fixed',
+      dayOfMonth: 10,
+      startMonth: DateTime.fromISO('2026-07-01'),
+      installmentsTotal: null,
+    })
+
+    await assert.rejects(() =>
+      recurringService.unconfirm(user.id, rule.id, DateTime.fromISO('2026-07-01'))
+    )
   })
 })

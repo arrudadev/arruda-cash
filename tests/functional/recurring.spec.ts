@@ -279,6 +279,56 @@ test.group('Recurring rules', (group) => {
     response.assertStatus(404)
   })
 
+  test('unconfirming an instance deletes the transaction and the instance', async ({
+    client,
+    assert,
+  }) => {
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    const rule = await RecurringRuleFactory.merge({
+      userId: user.id,
+      categoryId: category.id,
+      type: 'expense',
+      startMonth: DateTime.fromISO('2026-07-01'),
+      installmentsTotal: null,
+    }).create()
+    await client
+      .post(`/recurring/${rule.id}/confirm`)
+      .loginAs(user)
+      .form({ month: '2026-07-01', amount: 39.9 })
+
+    const response = await client
+      .delete(`/recurring/${rule.id}/confirm`)
+      .loginAs(user)
+      .redirects(0)
+      .form({ month: '2026-07-01' })
+
+    response.assertFound()
+    const instanceCount = await RecurringInstance.query()
+      .where('recurringRuleId', rule.id)
+      .count('* as total')
+    assert.equal(instanceCount[0].$extras.total, 0)
+    const transactionCount = await Transaction.query().where('userId', user.id).count('* as total')
+    assert.equal(transactionCount[0].$extras.total, 0)
+  })
+
+  test('unconfirming a month that was never confirmed 404s', async ({ client }) => {
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    const rule = await RecurringRuleFactory.merge({
+      userId: user.id,
+      categoryId: category.id,
+      type: 'expense',
+    }).create()
+
+    const response = await client
+      .delete(`/recurring/${rule.id}/confirm`)
+      .loginAs(user)
+      .form({ month: '2026-07-01' })
+
+    response.assertStatus(404)
+  })
+
   test('unauthenticated visitor is redirected away from recurring rules', async ({ client }) => {
     const response = await client.get('/recurring')
 

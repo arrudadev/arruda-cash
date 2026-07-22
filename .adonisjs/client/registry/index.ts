@@ -132,6 +132,12 @@ const routes = {
     tokens: [{"old":"/recurring/:id/confirm","type":0,"val":"recurring","end":""},{"old":"/recurring/:id/confirm","type":1,"val":"id","end":""},{"old":"/recurring/:id/confirm","type":0,"val":"confirm","end":""}],
     types: placeholder as Registry['recurring.confirm']['types'],
   },
+  'recurring.unconfirm': {
+    methods: ["DELETE"],
+    pattern: '/recurring/:id/confirm',
+    tokens: [{"old":"/recurring/:id/confirm","type":0,"val":"recurring","end":""},{"old":"/recurring/:id/confirm","type":1,"val":"id","end":""},{"old":"/recurring/:id/confirm","type":0,"val":"confirm","end":""}],
+    types: placeholder as Registry['recurring.unconfirm']['types'],
+  },
 } as const satisfies Record<string, AdonisEndpoint>
 
 export { routes }

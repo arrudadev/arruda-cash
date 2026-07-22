@@ -228,4 +228,28 @@ export class RecurringService {
 
     return instance
   }
+
+  /**
+   * Undoes a confirmation: deletes the real transaction it created and the
+   * instance record, so the month goes back to "to confirm". Doesn't try to
+   * roll back a variable rule's carried-forward amount — there's no history
+   * of what it was before, and re-confirming will simply set it again.
+   */
+  async unconfirm(userId: string, ruleId: string, month: DateTime) {
+    const targetMonth = month.startOf('month')
+    const monthIso = targetMonth.toISODate() as string
+
+    const instance = await RecurringInstance.query()
+      .where('userId', userId)
+      .where('recurringRuleId', ruleId)
+      .where('periodMonth', monthIso)
+      .firstOrFail()
+
+    if (instance.transactionId) {
+      const transaction = await Transaction.find(instance.transactionId)
+      await transaction?.delete()
+    }
+
+    await instance.delete()
+  }
 }
