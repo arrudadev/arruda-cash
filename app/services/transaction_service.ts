@@ -4,6 +4,7 @@ import ArchivedCategoryException from '#exceptions/archived_category_exception'
 import Transaction from '#models/transaction'
 // biome-ignore lint/style/useImportType: needed at runtime for @inject()'s reflection metadata
 import { CategoryService } from '#services/category_service'
+import { toCents } from '#services/money'
 
 const PER_PAGE = 20
 
@@ -21,10 +22,6 @@ type TransactionInput = {
   amount: number
   date: DateTime
   description?: string
-}
-
-function toCents(amountInReais: number) {
-  return Math.round(amountInReais * 100)
 }
 
 @inject()
