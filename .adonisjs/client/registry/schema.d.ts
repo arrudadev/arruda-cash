@@ -206,9 +206,9 @@ export interface Registry {
       body: {}
       paramsTuple: []
       params: {}
-      query: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/recurring_month').recurringMonthValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['index']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'recurring.store': {

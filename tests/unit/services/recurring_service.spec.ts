@@ -207,4 +207,141 @@ test.group('RecurringService', (group) => {
 
     await assert.rejects(() => recurringService.findForUser(attacker.id, rule.id))
   })
+
+  test('getMonthInstances only includes rules that apply to the given month', async ({
+    assert,
+  }) => {
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+
+    await recurringService.create(user.id, {
+      categoryId: category.id,
+      name: 'Netflix',
+      amount: 39.9,
+      kind: 'fixed',
+      dayOfMonth: 10,
+      startMonth: DateTime.fromISO('2026-01-01'),
+      installmentsTotal: null,
+    })
+    // Starts after July, shouldn't show up for July.
+    await recurringService.create(user.id, {
+      categoryId: category.id,
+      name: 'Future gym',
+      amount: 100,
+      kind: 'fixed',
+      dayOfMonth: 1,
+      startMonth: DateTime.fromISO('2026-09-01'),
+      installmentsTotal: null,
+    })
+    // A 3-installment purchase that finished before July.
+    await recurringService.create(user.id, {
+      categoryId: category.id,
+      name: 'Old headphones',
+      amount: 50,
+      kind: 'fixed',
+      dayOfMonth: 1,
+      startMonth: DateTime.fromISO('2026-01-01'),
+      installmentsTotal: 3,
+    })
+
+    const instances = await recurringService.getMonthInstances(
+      user.id,
+      DateTime.fromISO('2026-07-01')
+    )
+
+    assert.deepEqual(
+      instances.map((instance) => instance.name),
+      ['Netflix']
+    )
+  })
+
+  test('getMonthInstances excludes archived rules', async ({ assert }) => {
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    const rule = await recurringService.create(user.id, {
+      categoryId: category.id,
+      name: 'Netflix',
+      amount: 39.9,
+      kind: 'fixed',
+      dayOfMonth: 10,
+      startMonth: DateTime.fromISO('2026-01-01'),
+      installmentsTotal: null,
+    })
+    await recurringService.archive(rule)
+
+    const instances = await recurringService.getMonthInstances(
+      user.id,
+      DateTime.fromISO('2026-07-01')
+    )
+
+    assert.deepEqual(instances, [])
+  })
+
+  test('getMonthInstances reports the installment index for a parcelled rule', async ({
+    assert,
+  }) => {
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    await recurringService.create(user.id, {
+      categoryId: category.id,
+      name: 'Fridge, 12x',
+      amount: 250,
+      kind: 'fixed',
+      dayOfMonth: 5,
+      startMonth: DateTime.fromISO('2026-07-01'),
+      installmentsTotal: 12,
+    })
+
+    const [instance] = await recurringService.getMonthInstances(
+      user.id,
+      DateTime.fromISO('2026-10-01')
+    )
+
+    assert.equal(instance.installmentIndex, 4)
+    assert.equal(instance.installmentsTotal, 12)
+  })
+
+  test('getCommittedSummary sums committed instances by type', async ({ assert }) => {
+    const user = await UserFactory.create()
+    const bills = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    const salary = await CategoryFactory.merge({ userId: user.id, type: 'income' }).create()
+
+    await recurringService.create(user.id, {
+      categoryId: bills.id,
+      name: 'Netflix',
+      amount: 39.9,
+      kind: 'fixed',
+      dayOfMonth: 10,
+      startMonth: DateTime.fromISO('2026-01-01'),
+      installmentsTotal: null,
+    })
+    await recurringService.create(user.id, {
+      categoryId: bills.id,
+      name: 'Electricity',
+      amount: 200,
+      kind: 'variable',
+      dayOfMonth: 15,
+      startMonth: DateTime.fromISO('2026-01-01'),
+      installmentsTotal: null,
+    })
+    await recurringService.create(user.id, {
+      categoryId: salary.id,
+      name: 'Salary',
+      amount: 5000,
+      kind: 'fixed',
+      dayOfMonth: 1,
+      startMonth: DateTime.fromISO('2026-01-01'),
+      installmentsTotal: null,
+    })
+
+    const summary = await recurringService.getCommittedSummary(
+      user.id,
+      DateTime.fromISO('2026-07-01')
+    )
+
+    assert.equal(summary.month, '2026-07-01')
+    assert.equal(summary.expense, 23990)
+    assert.equal(summary.income, 500000)
+    assert.equal(summary.balance, 500000 - 23990)
+  })
 })

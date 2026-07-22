@@ -87,6 +87,49 @@ test.group('Recurring rules', (group) => {
     assert.deepEqual(names, ['Owner rule'])
   })
 
+  test('index returns committed instances and summary for the requested month', async ({
+    client,
+    assert,
+  }) => {
+    const user = await UserFactory.create()
+    const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    await RecurringRuleFactory.merge({
+      userId: user.id,
+      categoryId: category.id,
+      type: 'expense',
+      name: 'Netflix',
+      amount: 3990,
+      startMonth: DateTime.fromISO('2026-01-01'),
+      installmentsTotal: null,
+    }).create()
+
+    const july = await client
+      .get('/recurring')
+      .qs({ month: '2026-07-01' })
+      .loginAs(user)
+      .withInertia()
+    const names = july.inertiaProps.instances.map((instance: { name: string }) => instance.name)
+    assert.deepEqual(names, ['Netflix'])
+    assert.equal(july.inertiaProps.summary.expense, 3990)
+    assert.equal(july.inertiaProps.month, '2026-07-01')
+
+    const beforeStart = await client
+      .get('/recurring')
+      .qs({ month: '2025-12-01' })
+      .loginAs(user)
+      .withInertia()
+    assert.deepEqual(beforeStart.inertiaProps.instances, [])
+    assert.equal(beforeStart.inertiaProps.summary.expense, 0)
+  })
+
+  test('index defaults to the current month when none is given', async ({ client, assert }) => {
+    const user = await UserFactory.create()
+
+    const response = await client.get('/recurring').loginAs(user).withInertia()
+
+    assert.equal(response.inertiaProps.month, DateTime.now().startOf('month').toISODate())
+  })
+
   test('owner can update their rule', async ({ client, assert }) => {
     const user = await UserFactory.create()
     const category = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()

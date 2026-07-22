@@ -1,9 +1,10 @@
-import { Form } from '@adonisjs/inertia/react'
+import { Form, Link } from '@adonisjs/inertia/react'
 import type { Data } from '@generated/data'
+import { addMonths, format, parseISO, startOfMonth } from 'date-fns'
 import { useState } from 'react'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
-import { Card, CardContent } from '~/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -30,18 +31,186 @@ import {
   TableRow,
 } from '~/components/ui/table'
 import { formatBRL } from '~/lib/format'
+import { cn } from '~/lib/utils'
 
 type Category = Data.Category
 type RecurringRule = Data.RecurringRule
 type RuleType = Category['type']
 
+type MonthInstance = {
+  ruleId: string
+  name: string
+  type: RuleType
+  kind: RecurringRule['kind']
+  amount: number
+  dayOfMonth: number
+  categoryId: string
+  categoryName: string
+  categoryColor: string
+  installmentIndex: number | null
+  installmentsTotal: number | null
+}
+
+type CommittedSummary = {
+  month: string
+  income: number
+  expense: number
+  balance: number
+}
+
 type Props = {
   rules: RecurringRule[]
   categories: Category[]
+  month: string
+  instances: MonthInstance[]
+  summary: CommittedSummary
 }
 
 function centsToReaisInput(cents: number) {
   return (cents / 100).toFixed(2)
+}
+
+function installmentsLabel(rule: RecurringRule) {
+  if (rule.installmentsTotal === null) {
+    return 'Ongoing'
+  }
+  if (rule.installmentsRemaining === null) {
+    return 'Not started yet'
+  }
+  if (rule.installmentsRemaining === 0) {
+    return 'Completed'
+  }
+  return `${rule.installmentsRemaining} of ${rule.installmentsTotal} left`
+}
+
+function CommittedSection({
+  month,
+  summary,
+  instances,
+}: {
+  month: string
+  summary: CommittedSummary
+  instances: MonthInstance[]
+}) {
+  const now = new Date()
+  const monthOptions = [
+    { label: 'This month', value: format(startOfMonth(now), 'yyyy-MM-dd') },
+    { label: 'Next month', value: format(startOfMonth(addMonths(now, 1)), 'yyyy-MM-dd') },
+  ]
+
+  return (
+    <div className="mb-10">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold">
+          Committed — {format(parseISO(month), 'MMMM yyyy')}
+        </h2>
+        <div className="flex gap-2">
+          {monthOptions.map((option) => (
+            <Link
+              key={option.label}
+              route="recurring.index"
+              data={{ month: option.value }}
+              className={cn(
+                'inline-flex h-9 items-center rounded-md border px-3 text-sm font-medium',
+                month === option.value
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-input bg-background hover:bg-accent'
+              )}
+            >
+              {option.label}
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Committed expense
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold text-destructive">
+            {formatBRL(summary.expense)}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Projected income
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold text-green-600">
+            {formatBRL(summary.income)}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Net</CardTitle>
+          </CardHeader>
+          <CardContent
+            className={cn(
+              'text-2xl font-semibold',
+              summary.balance >= 0 ? 'text-green-600' : 'text-destructive'
+            )}
+          >
+            {formatBRL(summary.balance)}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Day</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Installment</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {instances.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                    Nothing committed for this month.
+                  </TableCell>
+                </TableRow>
+              )}
+              {instances.map((instance) => (
+                <TableRow key={instance.ruleId}>
+                  <TableCell>{instance.dayOfMonth}</TableCell>
+                  <TableCell>{instance.name}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="size-3 shrink-0 rounded-full"
+                        style={{ backgroundColor: instance.categoryColor }}
+                      />
+                      {instance.categoryName}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {instance.installmentsTotal
+                      ? `${instance.installmentIndex} of ${instance.installmentsTotal}`
+                      : '—'}
+                  </TableCell>
+                  <TableCell
+                    className={`text-right font-medium ${instance.type === 'income' ? 'text-green-600' : 'text-destructive'}`}
+                  >
+                    {instance.type === 'income' ? '+' : '-'}
+                    {formatBRL(instance.amount)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  )
 }
 
 function KindField({ defaultValue }: { defaultValue?: RecurringRule['kind'] }) {
@@ -315,7 +484,7 @@ function EditRuleDialog({
   )
 }
 
-export default function RecurringIndex({ rules, categories }: Props) {
+export default function RecurringIndex({ rules, categories, month, instances, summary }: Props) {
   const [showArchived, setShowArchived] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [editing, setEditing] = useState<RecurringRule | null>(null)
@@ -333,6 +502,8 @@ export default function RecurringIndex({ rules, categories }: Props) {
         </div>
         <CreateRuleDialog categories={categories} open={createOpen} onOpenChange={setCreateOpen} />
       </div>
+
+      <CommittedSection month={month} summary={summary} instances={instances} />
 
       <div className="mb-4">
         <Button
@@ -383,7 +554,7 @@ export default function RecurringIndex({ rules, categories }: Props) {
                   </TableCell>
                   <TableCell className="capitalize">{rule.kind}</TableCell>
                   <TableCell>{rule.dayOfMonth}</TableCell>
-                  <TableCell>{rule.installmentsTotal ?? 'Ongoing'}</TableCell>
+                  <TableCell>{installmentsLabel(rule)}</TableCell>
                   <TableCell
                     className={`text-right font-medium ${rule.type === 'income' ? 'text-green-600' : 'text-destructive'}`}
                   >
@@ -391,7 +562,12 @@ export default function RecurringIndex({ rules, categories }: Props) {
                     {formatBRL(rule.amount)}
                   </TableCell>
                   <TableCell>
-                    {rule.archivedAt && <Badge variant="secondary">Archived</Badge>}
+                    <div className="flex flex-wrap gap-1">
+                      {rule.archivedAt && <Badge variant="secondary">Archived</Badge>}
+                      {rule.installmentsTotal !== null && rule.installmentsRemaining === 0 && (
+                        <Badge variant="secondary">Completed</Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">

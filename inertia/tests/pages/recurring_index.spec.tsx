@@ -23,6 +23,14 @@ vi.mock('@adonisjs/inertia/react', () => ({
       {typeof children === 'function' ? children({ errors: {}, processing: false }) : children}
     </form>
   ),
+  Link: ({
+    children,
+    route,
+    data,
+    ...props
+  }: { children: ReactNode; route: string; data?: unknown } & Record<string, unknown>) => (
+    <a {...props}>{children}</a>
+  ),
 }))
 
 const groceries = {
@@ -43,6 +51,7 @@ const netflix = {
   dayOfMonth: 10,
   startMonth: '2026-07-01',
   installmentsTotal: null,
+  installmentsRemaining: null,
   archivedAt: null,
   createdAt: '2026-01-01T00:00:00.000+00:00',
   category: groceries,
@@ -55,16 +64,57 @@ const cancelledGym = {
   archivedAt: '2026-02-01T00:00:00.000+00:00',
 }
 
+const fridgeInstallments = {
+  ...netflix,
+  id: 'rule-3',
+  name: 'Fridge, 12x',
+  installmentsTotal: 12,
+  installmentsRemaining: 9,
+}
+
+const emptySummary = { month: '2026-07-01', income: 0, expense: 0, balance: 0 }
+
+const netflixInstance = {
+  ruleId: netflix.id,
+  name: netflix.name,
+  type: netflix.type,
+  kind: netflix.kind,
+  amount: netflix.amount,
+  dayOfMonth: netflix.dayOfMonth,
+  categoryId: groceries.id,
+  categoryName: groceries.name,
+  categoryColor: groceries.color,
+  installmentIndex: null,
+  installmentsTotal: null,
+}
+
 describe('RecurringIndex', () => {
-  it('shows an empty state when there are no rules', () => {
-    render(<RecurringIndex rules={[]} categories={[groceries]} />)
+  it('shows an empty state when there are no rules or committed instances', () => {
+    render(
+      <RecurringIndex
+        rules={[]}
+        categories={[groceries]}
+        month="2026-07-01"
+        instances={[]}
+        summary={emptySummary}
+      />
+    )
 
     expect(screen.getByText('No recurring rules yet.')).toBeInTheDocument()
+    expect(screen.getByText('Nothing committed for this month.')).toBeInTheDocument()
   })
 
   it('hides archived rules until "Show archived" is toggled', async () => {
     const user = userEvent.setup()
-    render(<RecurringIndex rules={[netflix, cancelledGym]} categories={[groceries]} />)
+    render(
+      <RecurringIndex
+        rules={[netflix, cancelledGym]}
+        categories={[groceries]}
+        month="2026-07-01"
+        instances={[]}
+        summary={emptySummary}
+      />
+    )
 
     expect(screen.getByText('Netflix')).toBeInTheDocument()
     expect(screen.queryByText('Gym (cancelled)')).not.toBeInTheDocument()
@@ -77,7 +127,15 @@ describe('RecurringIndex', () => {
 
   it('opens the create rule dialog', async () => {
     const user = userEvent.setup()
-    render(<RecurringIndex rules={[]} categories={[groceries]} />)
+    render(
+      <RecurringIndex
+        rules={[]}
+        categories={[groceries]}
+        month="2026-07-01"
+        instances={[]}
+        summary={emptySummary}
+      />
+    )
 
     await user.click(screen.getByRole('button', { name: 'New recurring rule' }))
 
@@ -86,8 +144,47 @@ describe('RecurringIndex', () => {
   })
 
   it('shows an ongoing rule as having no installment count', () => {
-    render(<RecurringIndex rules={[netflix]} categories={[groceries]} />)
+    render(
+      <RecurringIndex
+        rules={[netflix]}
+        categories={[groceries]}
+        month="2026-07-01"
+        instances={[]}
+        summary={emptySummary}
+      />
+    )
 
     expect(screen.getByText('Ongoing')).toBeInTheDocument()
+  })
+
+  it('shows how many installments are left for a parcelled rule', () => {
+    render(
+      <RecurringIndex
+        rules={[fridgeInstallments]}
+        categories={[groceries]}
+        month="2026-07-01"
+        instances={[]}
+        summary={emptySummary}
+      />
+    )
+
+    expect(screen.getByText('9 of 12 left')).toBeInTheDocument()
+  })
+
+  it("renders the committed summary and this month's instances", () => {
+    render(
+      <RecurringIndex
+        rules={[netflix]}
+        categories={[groceries]}
+        month="2026-07-01"
+        instances={[netflixInstance]}
+        summary={{ month: '2026-07-01', income: 0, expense: 3990, balance: -3990 }}
+      />
+    )
+
+    expect(screen.getByText('Committed — July 2026')).toBeInTheDocument()
+    expect(screen.getAllByText('Netflix').length).toBeGreaterThan(0)
+    expect(screen.getByText('This month')).toBeInTheDocument()
+    expect(screen.getByText('Next month')).toBeInTheDocument()
   })
 })

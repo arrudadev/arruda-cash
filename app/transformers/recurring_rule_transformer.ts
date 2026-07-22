@@ -17,6 +17,7 @@ export default class RecurringRuleTransformer extends BaseTransformer<RecurringR
         'archivedAt',
         'createdAt',
       ]),
+      installmentsRemaining: this.resource.installmentsRemaining,
       category: this.resource.category
         ? CategoryTransformer.transform(this.resource.category)
         : null,
