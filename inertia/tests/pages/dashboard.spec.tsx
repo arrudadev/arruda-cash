@@ -37,6 +37,17 @@ vi.mock('~/client', () => ({
   },
 }))
 
+const emptyCommitted = {
+  month: '2026-07-01',
+  income: 0,
+  expense: 0,
+  balance: 0,
+  confirmedIncome: 0,
+  confirmedExpense: 0,
+  pendingIncome: 0,
+  pendingExpense: 0,
+}
+
 describe('Dashboard', () => {
   it('shows income, expense and balance totals', () => {
     render(
@@ -46,6 +57,7 @@ describe('Dashboard', () => {
         expense={100000}
         balance={400000}
         breakdown={[]}
+        committed={emptyCommitted}
       />
     )
 
@@ -62,6 +74,7 @@ describe('Dashboard', () => {
         expense={0}
         balance={0}
         breakdown={[]}
+        committed={emptyCommitted}
       />
     )
 
@@ -85,6 +98,7 @@ describe('Dashboard', () => {
             total: 2000,
           },
         ]}
+        committed={emptyCommitted}
       />
     )
 
@@ -100,6 +114,7 @@ describe('Dashboard', () => {
         expense={0}
         balance={0}
         breakdown={[]}
+        committed={emptyCommitted}
       />
     )
 
@@ -145,6 +160,7 @@ describe('Dashboard', () => {
             total: 2000,
           },
         ]}
+        committed={emptyCommitted}
       />
     )
 
@@ -158,5 +174,32 @@ describe('Dashboard', () => {
     await waitFor(() => {
       expect(screen.getByText('Weekly shop')).toBeInTheDocument()
     })
+  })
+
+  it('shows the committed-this-month card with a confirmed/pending split', () => {
+    render(
+      <Dashboard
+        period={{ from: '2026-07-01', to: '2026-07-31' }}
+        income={0}
+        expense={0}
+        balance={0}
+        breakdown={[]}
+        committed={{
+          month: '2026-07-01',
+          income: 0,
+          expense: 33990,
+          balance: -33990,
+          confirmedIncome: 0,
+          confirmedExpense: 3990,
+          pendingIncome: 0,
+          pendingExpense: 30000,
+        }}
+      />
+    )
+
+    expect(screen.getByText('Committed this month')).toBeInTheDocument()
+    expect(screen.getByText(/R\$\s*339,90/)).toBeInTheDocument()
+    expect(screen.getByText(/R\$\s*39,90 confirmed/)).toBeInTheDocument()
+    expect(screen.getByText('View recurring →')).toBeInTheDocument()
   })
 })

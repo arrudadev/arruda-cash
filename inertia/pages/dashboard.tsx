@@ -29,12 +29,24 @@ type BreakdownItem = {
 
 type Period = { from: string; to: string }
 
+type CommittedSummary = {
+  month: string
+  income: number
+  expense: number
+  balance: number
+  confirmedIncome: number
+  confirmedExpense: number
+  pendingIncome: number
+  pendingExpense: number
+}
+
 type Props = {
   period: Period
   income: number
   expense: number
   balance: number
   breakdown: BreakdownItem[]
+  committed: CommittedSummary
 }
 
 const dateFmt = 'yyyy-MM-dd'
@@ -119,7 +131,14 @@ function CategoryDrilldown({
   )
 }
 
-export default function Dashboard({ period, income, expense, balance, breakdown }: Props) {
+export default function Dashboard({
+  period,
+  income,
+  expense,
+  balance,
+  breakdown,
+  committed,
+}: Props) {
   const now = new Date()
   const presets = [
     { label: 'This month', range: preset(startOfMonth(now), endOfMonth(now)) },
@@ -179,7 +198,7 @@ export default function Dashboard({ period, income, expense, balance, breakdown 
         </div>
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-4">
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium text-muted-foreground">Income</CardTitle>
@@ -207,6 +226,28 @@ export default function Dashboard({ period, income, expense, balance, breakdown 
             )}
           >
             {formatBRL(balance)}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Committed this month
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-semibold text-destructive">
+              {formatBRL(committed.expense)}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {formatBRL(committed.confirmedExpense)} confirmed ·{' '}
+              {formatBRL(committed.pendingExpense)} to confirm
+            </p>
+            <Link
+              route="recurring.index"
+              className="mt-2 inline-block text-sm font-medium text-primary hover:underline"
+            >
+              View recurring →
+            </Link>
           </CardContent>
         </Card>
       </div>

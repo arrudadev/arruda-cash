@@ -2,6 +2,7 @@ import testUtils from '@adonisjs/core/services/test_utils'
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
 import { CategoryFactory } from '#database/factories/category_factory'
+import { RecurringRuleFactory } from '#database/factories/recurring_rule_factory'
 import { TransactionFactory } from '#database/factories/transaction_factory'
 import { UserFactory } from '#database/factories/user_factory'
 
@@ -38,6 +39,35 @@ test.group('Dashboard', (group) => {
     assert.equal(response.inertiaProps.expense, 1000)
     assert.equal(response.inertiaProps.balance, 4000)
     assert.lengthOf(response.inertiaProps.breakdown, 2)
+  })
+
+  test('includes this month committed recurring totals regardless of the selected period', async ({
+    client,
+    assert,
+  }) => {
+    const user = await UserFactory.create()
+    const bills = await CategoryFactory.merge({ userId: user.id, type: 'expense' }).create()
+    await RecurringRuleFactory.merge({
+      userId: user.id,
+      categoryId: bills.id,
+      type: 'expense',
+      name: 'Netflix',
+      amount: 3990,
+      startMonth: DateTime.now().startOf('month'),
+      installmentsTotal: null,
+    }).create()
+
+    // A period far from the current month — committed is always "this month".
+    const response = await client
+      .get('/dashboard')
+      .qs({ from: '2020-01-01', to: '2020-01-31' })
+      .loginAs(user)
+      .withInertia()
+
+    assert.equal(response.inertiaProps.committed.expense, 3990)
+    assert.equal(response.inertiaProps.committed.confirmedExpense, 0)
+    assert.equal(response.inertiaProps.committed.pendingExpense, 3990)
+    assert.equal(response.inertiaProps.committed.month, DateTime.now().startOf('month').toISODate())
   })
 
   test('unauthenticated visitor is redirected away from the dashboard', async ({ client }) => {
