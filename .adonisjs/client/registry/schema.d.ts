@@ -199,4 +199,52 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['destroy']>>>
     }
   }
+  'recurring.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/recurring'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['index']>>>
+    }
+  }
+  'recurring.store': {
+    methods: ["POST"]
+    pattern: '/recurring'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/recurring_rule').recurringRuleValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/recurring_rule').recurringRuleValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'recurring.update': {
+    methods: ["PUT"]
+    pattern: '/recurring/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/recurring_rule').recurringRuleValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/recurring_rule').recurringRuleValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'recurring.destroy': {
+    methods: ["DELETE"]
+    pattern: '/recurring/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['destroy']>>>
+    }
+  }
 }

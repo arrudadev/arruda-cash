@@ -7,6 +7,7 @@ export const controllers = {
   Categories: () => import('#controllers/categories_controller'),
   Dashboard: () => import('#controllers/dashboard_controller'),
   Invite: () => import('#controllers/invite_controller'),
+  Recurring: () => import('#controllers/recurring_controller'),
   Session: () => import('#controllers/session_controller'),
   Transactions: () => import('#controllers/transactions_controller'),
 }

@@ -65,6 +65,12 @@ export default function Layout({ children }: { children: ReactElement<Data.Share
                   Categories
                 </Link>
                 <Link
+                  route="recurring.index"
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground"
+                >
+                  Recurring
+                </Link>
+                <Link
                   route="dashboard"
                   className="flex size-9 items-center justify-center rounded-full bg-secondary text-sm font-medium text-secondary-foreground"
                 >

@@ -102,6 +102,30 @@ const routes = {
     tokens: [{"old":"/transactions/:id","type":0,"val":"transactions","end":""},{"old":"/transactions/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['transactions.destroy']['types'],
   },
+  'recurring.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/recurring',
+    tokens: [{"old":"/recurring","type":0,"val":"recurring","end":""}],
+    types: placeholder as Registry['recurring.index']['types'],
+  },
+  'recurring.store': {
+    methods: ["POST"],
+    pattern: '/recurring',
+    tokens: [{"old":"/recurring","type":0,"val":"recurring","end":""}],
+    types: placeholder as Registry['recurring.store']['types'],
+  },
+  'recurring.update': {
+    methods: ["PUT"],
+    pattern: '/recurring/:id',
+    tokens: [{"old":"/recurring/:id","type":0,"val":"recurring","end":""},{"old":"/recurring/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['recurring.update']['types'],
+  },
+  'recurring.destroy': {
+    methods: ["DELETE"],
+    pattern: '/recurring/:id',
+    tokens: [{"old":"/recurring/:id","type":0,"val":"recurring","end":""},{"old":"/recurring/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['recurring.destroy']['types'],
+  },
 } as const satisfies Record<string, AdonisEndpoint>
 
 export { routes }

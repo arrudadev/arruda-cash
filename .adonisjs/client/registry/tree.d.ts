@@ -27,4 +27,10 @@ export interface ApiDefinition {
     update: typeof routes['transactions.update']
     destroy: typeof routes['transactions.destroy']
   }
+  recurring: {
+    index: typeof routes['recurring.index']
+    store: typeof routes['recurring.store']
+    update: typeof routes['recurring.update']
+    destroy: typeof routes['recurring.destroy']
+  }
 }

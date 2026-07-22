@@ -41,5 +41,10 @@ router
     router.post('transactions', [controllers.Transactions, 'store'])
     router.put('transactions/:id', [controllers.Transactions, 'update'])
     router.delete('transactions/:id', [controllers.Transactions, 'destroy'])
+
+    router.get('recurring', [controllers.Recurring, 'index'])
+    router.post('recurring', [controllers.Recurring, 'store'])
+    router.put('recurring/:id', [controllers.Recurring, 'update'])
+    router.delete('recurring/:id', [controllers.Recurring, 'destroy'])
   })
   .use(middleware.auth())

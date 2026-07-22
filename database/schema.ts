@@ -49,6 +49,37 @@ export class InviteSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
+export class RecurringRuleSchema extends BaseModel {
+  static $columns = ['amount', 'archivedAt', 'categoryId', 'createdAt', 'dayOfMonth', 'id', 'installmentsTotal', 'kind', 'name', 'startMonth', 'type', 'updatedAt', 'userId'] as const
+  $columns = RecurringRuleSchema.$columns
+  @column()
+  declare amount: number
+  @column.dateTime()
+  declare archivedAt: DateTime | null
+  @column()
+  declare categoryId: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare dayOfMonth: number
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare installmentsTotal: number | null
+  @column()
+  declare kind: string
+  @column()
+  declare name: string
+  @column.date()
+  declare startMonth: DateTime
+  @column()
+  declare type: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare userId: string
+}
+
 export class TransactionSchema extends BaseModel {
   static $columns = ['amount', 'categoryId', 'createdAt', 'date', 'description', 'id', 'type', 'updatedAt', 'userId'] as const
   $columns = TransactionSchema.$columns
